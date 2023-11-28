@@ -1,0 +1,10 @@
+This folder is made to be synced with the github: https://github.com/qcha41/autolab-drivers
+
+Any change that is made here will be overwritten at next:
+autolab.install_drivers()
+
+For this very reason we advice the user not to modify the content of this folder and its sub-folders.
+
+Local drivers may be written in the dedicated folder at %userprofile%/autolab/drivers/local
+
+For more infos see: https://autolab.readthedocs.io/en/latest/
