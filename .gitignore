@@ -1,14 +1,3 @@
 
 *.pyc
 *.spyproject
-autolab/*.spyproject
-test.py
-
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
-
-# Sphinx documentation
-docs/hmtl/
-docs/latexpdf/

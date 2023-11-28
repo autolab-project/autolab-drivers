@@ -1,18 +1,10 @@
-# Autolab
-__Python package for scientific experiments automation__
+# Autolab-driver
+__Drivers for the Autolab Python package https://github.com/Python-simulation/autolab__
 
-The purpose of this package it to provide easy and efficient tools to deal with your scientific instruments, and to run automated experiments with them, by command line instructions or through a graphical user interface (GUI). 
+The purpose of this repository it to provide all the drivers compatible with Autolab.
+They are imported to Autolab on installation or when using autolab.install_drivers()
 
 Created by Quentin Chateiller, Python drivers from Quentin Chateiller and Bruno Garbin, for the C2N-CNRS (Center for Nanosciences and Nanotechnologies, Palaiseau, France) ToniQ team.
+New drivers created by Jonathan peltier, for the C2N, Minaphot team.
 
-Visit https://autolab.readthedocs.io/ for the full documentation of this package.
-
-## Overview
-
-![Autolab scheme](docs/scheme.png)
-
-## GUI example
-
-![Autolab Scanning GUI](docs/gui/scanning.png)
-
-![Autolab Control Panel GUI](docs/gui/control_panel.png)
+Visit https://autolab.readthedocs.io for the full documentation of Autolab package.
