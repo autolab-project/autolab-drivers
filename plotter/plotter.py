@@ -121,13 +121,21 @@ class Driver :
     def __init__(self, gui=None):
 
         if gui:
+            import pyqtgraph as pg
             self.gui = gui
             self.ax = self.gui.figureManager.ax
-            self.cursor_left_y = self.ax.plot([None],[None],'--',color='grey', label="Cursor left y")[0]
-            self.cursor_right_y = self.ax.plot([None],[None],'--',color='grey', label="Cursor right y")[0]
-            self.cursor_extremum = self.ax.plot([None],[None],'--',color='grey', label="Cursor max")[0]
-            self.cursor_left_x = self.ax.plot([None],[None],'--',color='grey', label="Cursor left x")[0]
-            self.cursor_right_x = self.ax.plot([None],[None],'--',color='grey', label="Cursor right x")[0]
+            pen = pg.mkPen(color=0.4, style=pg.QtCore.Qt.DashLine)
+            self.cursor_left_y = pg.InfiniteLine(movable=True, angle=90, pen=pen, name="Cursor left y")
+            self.cursor_right_y = pg.InfiniteLine(angle=90, pen=pen, name="Cursor right y")
+            self.cursor_extremum = pg.InfiniteLine(angle=0, pen=pen, name="Cursor max")
+            self.cursor_left_x = pg.InfiniteLine(angle=0, pen=pen, name="Cursor left x")
+            self.cursor_right_x = pg.InfiniteLine(angle=0, pen=pen, name="Cursor right x")
+
+            def handle_sig_dragged(obj):  # OPTIMIZE: could be useful
+                assert obj is self.cursor_left_y
+                print(obj.value())
+
+            self.cursor_left_y.sigDragged.connect(handle_sig_dragged)
 
         self.data = pd.DataFrame()
         self.x_label = ""
@@ -245,36 +253,47 @@ class Driver :
 
         if hasattr(self, "gui"):
             assert len(cursors_coordinate) == 3, f"This function only works with 3 cursors, {len(cursors_coordinate)} were given"
-            xmin, xmax = -1e99, 1e99
-            ymin, ymax = -1e99, 1e99
             (left, extremum, right) = cursors_coordinate
 
             # left cursor
-            self.cursor_left_y.set_xdata([left[0], left[0]])
-            self.cursor_left_y.set_ydata([ymin, ymax])
+            if left[0] is None or np.isnan(left[0]):
+                self.gui.figureManager.fig.removeItem(self.cursor_left_y)
+            else:
+                self.gui.figureManager.fig.addItem(self.cursor_left_y)
+                self.cursor_left_y.setValue(left[0])  # WARNING: pyqtgraph is very susceptible with nan value, will stop working if plot nan due to ang = round(item.transformAngle()) in ViewBox with item being InfiniteLine
 
             # right cursor
-            self.cursor_right_y.set_xdata([right[0], right[0]])
-            self.cursor_right_y.set_ydata([ymin, ymax])
+            if right[0] is None or np.isnan(right[0]):
+                self.gui.figureManager.fig.removeItem(self.cursor_right_y)
+            else:
+                self.gui.figureManager.fig.addItem(self.cursor_right_y)
+                self.cursor_right_y.setValue(right[0])
 
             # extremum cursor
-            self.cursor_extremum.set_xdata([xmin, xmax])
-            self.cursor_extremum.set_ydata([extremum[1], extremum[1]])
+            if extremum[1] is None or np.isnan(extremum[1]):
+                self.gui.figureManager.fig.removeItem(self.cursor_extremum)
+            else:
+                self.gui.figureManager.fig.addItem(self.cursor_extremum)
+                self.cursor_extremum.setValue(extremum[1])
 
             # left 3db marker
-            self.cursor_left_x.set_xdata([xmin, xmax])
-            self.cursor_left_x.set_ydata([left[1], left[1]])
+            if left[1] is None or np.isnan(left[1]):
+                self.gui.figureManager.fig.removeItem(self.cursor_left_x)
+            else:
+                self.gui.figureManager.fig.addItem(self.cursor_left_x)
+                self.cursor_left_x.setValue(left[1])
 
             # right 3db marker
-            self.cursor_right_x.set_xdata([xmin, xmax])
-            self.cursor_right_x.set_ydata([right[1], right[1]])
+            if right[1] is None or np.isnan(right[1]):
+                self.gui.figureManager.fig.removeItem(self.cursor_right_x)
+            else:
+                self.gui.figureManager.fig.addItem(self.cursor_right_x)
+                self.cursor_right_x.setValue(right[1])
 
             # remove right 3db marker if same as left
             if left[1] == right[1]:
-                self.cursor_right_x.set_xdata([None, None])
-                self.cursor_right_x.set_ydata([None, None])
+                self.gui.figureManager.fig.removeItem(self.cursor_right_x)
 
-            self.gui.figureManager.redraw()
 
     def get_driver_model(self):
 
@@ -417,7 +436,7 @@ class MeanModule:
         self.analyzer = analyzer
 
     def x(self):
-        return np.mean(self.analyzer.data[self.analyzer.x_label])
+        return np.mean(self.analyzer.data[self.analyzer.x_label])  # OPTIMIZE: if y_label has none, return wrong value
 
     def y(self):
         return np.mean(self.analyzer.data[self.analyzer.y_label])
