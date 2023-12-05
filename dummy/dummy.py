@@ -138,16 +138,15 @@ class Driver():
         # array_2D = np.random.random((self._nbpts,2))
         return array_2D
 
-    # def get_array_3D(self):
-    #     # OPTIMIZE: currently not supported in autolab
-    #     import pyqtgraph as pg
-    #     img = pg.gaussianFilter(np.random.normal(size=(200, 200)), (5, 5)) * 20 + 100
-    #     img = img[np.newaxis,:,:]
-    #     decay = np.exp(-np.linspace(0,0.3,100))[:,np.newaxis,np.newaxis]
-    #     data = np.random.normal(size=(100, 200, 200))
-    #     data += img * decay
-    #     data += 2
-    #     return data
+    def get_array_3D(self):
+        return np.random.normal(size=(200, 200))
+
+    def get_Image(self):
+        import os
+        from PIL import Image
+        img = np.asarray(Image.open(os.path.join(os.path.dirname(__file__), 'dummy_image.jpg')))
+        lum_img = img[:, :, 0]
+        return lum_img + np.random.normal(size=lum_img.shape, scale=10+self.constant)
 
     def get_constant(self):
         return self.constant
@@ -178,7 +177,8 @@ class Driver():
         model.append({'element':'variable','name':'array','type':np.ndarray,'read':self.get_array})
         model.append({'element':'variable','name':'array_1D','type':np.ndarray,'read':self.get_array_1D})
         model.append({'element':'variable','name':'array_2D','type':np.ndarray,'read':self.get_array_2D})
-        # model.append({'element':'variable','name':'array_3D','type':np.ndarray,'read':self.get_array_3D})
+        model.append({'element':'variable','name':'array_3D','type':np.ndarray,'read':self.get_array_3D})
+        model.append({'element':'variable','name':'Image','type':np.ndarray,'read':self.get_Image})
         model.append({'element':'variable','name':'sleep','type':float,'read':self.get_sleep,'write':self.set_sleep})
         model.append({'element':'variable','name':'verbose','type':bool,'read_init':True,'read':self.get_verbose,'write':self.set_verbose})
         model.append({'element':'variable','name':'constant','type':float,'read':self.get_constant,'write':self.set_constant,'help':'Constant variable.'})

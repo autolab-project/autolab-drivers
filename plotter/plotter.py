@@ -250,7 +250,7 @@ class Driver :
                 self.gui.setStatus(f"Can't display markers: {error}",10000, False)
 
     def displayCursors(self, cursors_coordinate):
-
+        # OPTIMIZE: warning message if call this method from the driver instead of the autolab plotter : QObject::startTimer: Timers cannot be started from another thread
         if hasattr(self, "gui"):
             assert len(cursors_coordinate) == 3, f"This function only works with 3 cursors, {len(cursors_coordinate)} were given"
             (left, extremum, right) = cursors_coordinate
