@@ -41,6 +41,14 @@ class Driver():
         os.chdir(str(folder))
 
 
+    def get_temp_dir(self):
+        import tempfile
+        return str(os.environ.get('TEMP', tempfile.gettempdir()))
+
+    def set_temp_dir(self, folder):
+        os.environ['TEMP'] = str(folder)
+
+
     def create_folder(self, folder_name):
         os.makedirs(folder_name)
 
@@ -53,12 +61,16 @@ class Driver():
         model.append({'element':'variable','name':'parameter_buffer','type':float,'read':self.get_paramter_buffer,'write':self.parameter_buffer,'help':'Parameter buffer for monitoring in the scanning panel. Can read this value'})
         model.append({'element':'action','name':'wait','param_type':float,'param_unit':'s','do':self.wait,'help':'System wait during the value provided.'})
         model.append({'element':'variable','name':'default_dir',
+                      'read_init': True,
                       'read':self.get_default_dir, 'write':self.set_default_dir,
                       "type":str,'help':'Change the default path'})
+        model.append({'element':'variable','name':'temp_dir',
+                      'read_init': True,
+                      'read':self.get_temp_dir, 'write':self.set_temp_dir,
+                      "type":str,'help':'Change the temporary folder path'})
         model.append({'element':'action','name':'create_folder',
                       'do':self.create_folder,
                       "param_type":str,'help':'Create a folder'})
-
 
         return model
 
