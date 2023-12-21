@@ -646,18 +646,21 @@ class BandwidthModule:
 
 
         config.append({'element':'variable','name':'depth',
+                       'read_init':True,
                        'read':self.get_depth,
                        'write':self.set_depth,
                        'type':int,
                        'help':'Set algorithm depth to find the local extremum'})
 
         config.append({'element':'variable','name':'comparator',
+                       'read_init':True,
                        'read':self.get_comparator,
                        'write':self.set_comparator,
                        'type':bool,
                        'help':'Set comparator state. True for greater and False for less'})
 
         config.append({'element':'variable','name':'level',
+                       'read_init':True,
                        'read':self.get_level,
                        'write':self.set_level,
                        'type':float,
