@@ -1,5 +1,5 @@
 # Autolab-driver
-__Drivers for the Autolab Python package https://github.com/Python-simulation/autolab__
+__Drivers for the Autolab Python package https://github.com/autolab-project/autolab__
 
 The purpose of this repository it to provide all the drivers compatible with Autolab.
 They are imported to Autolab on installation or when using autolab.install_drivers()

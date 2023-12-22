@@ -1,4 +1,4 @@
-This folder is made to be synced with the github: https://github.com/Python-simulation/autolab-drivers
+This folder is made to be synced with the github: https://github.com/autolab-project/autolab-drivers
 
 Any change that is made here will be overwritten at next:
 autolab.install_drivers()
