@@ -122,20 +122,38 @@ class Driver :
 
         if gui:
             import pyqtgraph as pg
+            # Best practice with gui would be to only use addToQueue and setStatus to avoid messing with plotter
             self.gui = gui
-            self.ax = self.gui.figureManager.ax
+
             pen = pg.mkPen(color=0.4, style=pg.QtCore.Qt.DashLine)
-            self.cursor_left_y = pg.InfiniteLine(movable=True, angle=90, pen=pen, name="Cursor left y")
-            self.cursor_right_y = pg.InfiniteLine(angle=90, pen=pen, name="Cursor right y")
-            self.cursor_extremum = pg.InfiniteLine(angle=0, pen=pen, name="Cursor max")
-            self.cursor_left_x = pg.InfiniteLine(angle=0, pen=pen, name="Cursor left x")
-            self.cursor_right_x = pg.InfiniteLine(angle=0, pen=pen, name="Cursor right x")
+            pen_r = pg.mkPen(color="r", style=pg.QtCore.Qt.DashLine)
+            pen_g = pg.mkPen(color="g", style=pg.QtCore.Qt.DashLine)
+            pen_b = pg.mkPen(color="b", style=pg.QtCore.Qt.DashLine)
+            # OPTIMIZE: search for a way to plot using span=(-1e99, 1e99) but still updating when adding to plot
+            self.cursor_left_vertical = pg.InfiniteLine(movable=True, angle=90, pen=pen_b, name="Cursor left y")
+            self.cursor_right_vertical = pg.InfiniteLine(movable=True, angle=90, pen=pen_r, name="Cursor right y")
+            self.cursor_extremum_horizontal = pg.InfiniteLine(movable=True, angle=0, pen=pen_g, name="Cursor max")
+            self.cursor_left_horizontal = pg.InfiniteLine(movable=True, angle=0, pen=pen, name="Cursor left x")
+            self.cursor_right_horizontal = pg.InfiniteLine(movable=True, angle=0, pen=pen, name="Cursor right x")
 
-            def handle_sig_dragged(obj):  # OPTIMIZE: could be useful
-                assert obj is self.cursor_left_y
-                print(obj.value())
+            self.cursor_left_vertical.hide()
+            self.cursor_right_vertical.hide()
+            self.cursor_extremum_horizontal.hide()
+            self.cursor_left_horizontal.hide()
+            self.cursor_right_horizontal.hide()
 
-            self.cursor_left_y.sigDragged.connect(handle_sig_dragged)
+            self.cursor_list = [
+                self.cursor_left_vertical, self.cursor_right_vertical, self.cursor_extremum_horizontal,
+                self.cursor_left_horizontal, self.cursor_right_horizontal]
+
+            self.gui.addToQueue('add', self.cursor_list)
+
+            # def handle_sig_dragged(obj):  # not useful in driver because isn't triggered. In plotter work but useless
+            #     assert obj is self.cursor_left_vertical
+            #     print(obj.value())
+            # self.cursor_left_vertical.sigDragged.connect(handle_sig_dragged)
+        else:
+            self.gui = None
 
         self.data = pd.DataFrame()
         self.x_label = ""
@@ -148,6 +166,14 @@ class Driver :
         self.mean = MeanModule(self)
         self.std = StdModule(self)
         self.bandwidth = BandwidthModule(self)
+
+    def get_cursor_movable(self):
+        if self.gui: return bool(self.cursor_list[0].movable)
+
+    def set_cursor_movable(self, value):
+        value = bool(int(float(value)))
+        for cursor in self.cursor_list:
+            cursor.setMovable(value)
 
     def get_displayCursor(self):
         return bool(self.isDisplayCursor)
@@ -221,7 +247,7 @@ class Driver :
     def refresh(self, data):
         """ Called by plotter"""
 
-        if hasattr(self, "gui"):
+        if self.gui:
             self.set_data(data)
 
             if self.isDisplayCursor:
@@ -240,7 +266,7 @@ class Driver :
                 self.displayCursors([(None,None)]*3)
 
     def refresh_gui(self):
-        if hasattr(self, "gui") and self.isDisplayCursor:
+        if self.gui and self.isDisplayCursor:
             results = self.bandwidth.results
             cursors_coordinate = (results["left"], results["extremum"], results["right"])
 
@@ -250,59 +276,88 @@ class Driver :
                 self.gui.setStatus(f"Can't display markers: {error}",10000, False)
 
     def displayCursors(self, cursors_coordinate):
-        # OPTIMIZE: warning message if call this method from the driver instead of the autolab plotter : QObject::startTimer: Timers cannot be started from another thread
-        if hasattr(self, "gui"):
+
+        if self.gui:
             assert len(cursors_coordinate) == 3, f"This function only works with 3 cursors, {len(cursors_coordinate)} were given"
             (left, extremum, right) = cursors_coordinate
 
+            # Stupid but only way to refresh cursor size...
+            self.gui.addToQueue('remove', self.cursor_list)
+            self.gui.addToQueue('add', self.cursor_list)
+
+            if len(self.data) != 0:
+                if self.x_label == self.y_label:
+                    x_data = np.array(self.data.values[:,0])
+                    y_data = x_data
+                else:
+                    x_data = self.data[self.x_label]
+                    y_data = self.data[self.y_label]
+
+                bounds_vertical = [x_data.min(), x_data.max()]
+                bounds_horizontal = [y_data.min(), y_data.max()]
+
+                self.cursor_left_vertical.setBounds(bounds_vertical)
+                self.cursor_right_vertical.setBounds(bounds_vertical)
+
+                self.cursor_left_horizontal.setBounds(bounds_horizontal)
+                self.cursor_right_horizontal.setBounds(bounds_horizontal)
+                self.cursor_extremum_horizontal.setBounds(bounds_horizontal)
+
             # left cursor
             if left[0] is None or np.isnan(left[0]):
-                self.gui.figureManager.fig.removeItem(self.cursor_left_y)
+                self.cursor_left_vertical.hide()
             else:
-                self.gui.figureManager.fig.addItem(self.cursor_left_y)
-                self.cursor_left_y.setValue(left[0])  # WARNING: pyqtgraph is very susceptible with nan value, will stop working if plot nan due to ang = round(item.transformAngle()) in ViewBox with item being InfiniteLine
+                self.cursor_left_vertical.setValue(left[0])
+                self.cursor_left_vertical.show()
+                # WARNING: pyqtgraph is very susceptible with nan value, will stop working if plot nan due to ang = round(item.transformAngle()) in ViewBox with item being InfiniteLine
 
             # right cursor
             if right[0] is None or np.isnan(right[0]):
-                self.gui.figureManager.fig.removeItem(self.cursor_right_y)
+                self.cursor_right_vertical.hide()
             else:
-                self.gui.figureManager.fig.addItem(self.cursor_right_y)
-                self.cursor_right_y.setValue(right[0])
+                self.cursor_right_vertical.setValue(right[0])
+                self.cursor_right_vertical.show()
 
             # extremum cursor
             if extremum[1] is None or np.isnan(extremum[1]):
-                self.gui.figureManager.fig.removeItem(self.cursor_extremum)
+                self.cursor_extremum_horizontal.hide()
             else:
-                self.gui.figureManager.fig.addItem(self.cursor_extremum)
-                self.cursor_extremum.setValue(extremum[1])
+                self.cursor_extremum_horizontal.setValue(extremum[1])
+                self.cursor_extremum_horizontal.show()
 
             # left 3db marker
             if left[1] is None or np.isnan(left[1]):
-                self.gui.figureManager.fig.removeItem(self.cursor_left_x)
+                self.cursor_left_horizontal.hide()
             else:
-                self.gui.figureManager.fig.addItem(self.cursor_left_x)
-                self.cursor_left_x.setValue(left[1])
+                self.cursor_left_horizontal.setValue(left[1])
+                self.cursor_left_horizontal.show()
 
             # right 3db marker
             if right[1] is None or np.isnan(right[1]):
-                self.gui.figureManager.fig.removeItem(self.cursor_right_x)
+                self.cursor_right_horizontal.hide()
             else:
-                self.gui.figureManager.fig.addItem(self.cursor_right_x)
-                self.cursor_right_x.setValue(right[1])
+                self.cursor_right_horizontal.setValue(right[1])
+                self.cursor_right_horizontal.show()
 
             # remove right 3db marker if same as left
             if left[1] == right[1]:
-                self.gui.figureManager.fig.removeItem(self.cursor_right_x)
+                self.cursor_right_horizontal.hide()
 
+            if extremum[1] == right[1]:
+                self.cursor_right_horizontal.hide()
 
     def get_driver_model(self):
 
         config = []
 
-        if hasattr(self, "gui"):
+        if self.gui:
+            config.append({'element':'variable','name':'cursor_movable','type':bool,
+                           'read_init':True,'read':self.get_cursor_movable, 'write':self.set_cursor_movable,
+                           "help": "Select if cursors are movable"})
             config.append({'element':'variable','name':'displayCursor','type':bool,
                            'read':self.get_displayCursor, 'write':self.set_displayCursor,
                            "help": "Select if want to display cursors"})
+
         else:
             config.append({'element':'module','name':'info','object':getattr(self,'info')})
 
@@ -325,13 +380,13 @@ class Driver :
         config.append({'element':'module','name':'max','object':getattr(self,'max')})
         config.append({'element':'module','name':'mean','object':getattr(self,'mean')})
         config.append({'element':'module','name':'std','object':getattr(self,'std')})
-        config.append({'element':'module','name':'bandwidth','object':getattr(self,'bandwidth')})
+        config.append({'element':'module','name':'bandwidth','object':getattr(self,'bandwidth'),
+                       'help': 'Control bandwidth search options'})
 
         return config
 
     def close(self):
-        self.displayCursors([(None,None)]*3)
-
+            self.gui.addToQueue('remove', self.cursor_list)
 
 class Driver_DEFAULT(Driver):
     def __init__(self, **kwargs):
@@ -503,27 +558,59 @@ class BandwidthModule:
         self._remove_zero = False
 
 
-    def init_variables(self):
+    def init_variables(self) -> dict:
         return {"left": (0, -99), "extremum": (0, -99), "right": (0, -99)}
 
 
-    def get_x_left(self):
-        return self.results["left"][0]
+    def get_x_left(self) -> float:
+        if self.analyzer.gui: return float(self.analyzer.cursor_left_vertical.value())
+        else: return self.results["left"][0]
 
-    def get_y_left(self):
-        return self.results["left"][1]
+    def get_y_left(self) -> float:
+        if self.analyzer.gui: return self._get_y_from_x(
+                self.analyzer.data, float(self.analyzer.cursor_left_vertical.value()))
+        else: return self.results["left"][1]
 
-    def get_x_extremum(self):
+    def get_x_extremum(self) -> float:
         return self.results["extremum"][0]
 
-    def get_y_extremum(self):
-        return self.results["extremum"][1]
+    def get_y_extremum(self) -> float:
+        if self.analyzer.gui: return float(self.analyzer.cursor_extremum_horizontal.value())
+        else: return self.results["extremum"][1]
 
-    def get_x_right(self):
-        return self.results["right"][0]
+    def get_x_right(self) -> float:
+        if self.analyzer.gui: return float(self.analyzer.cursor_right_vertical.value())
+        else: return self.results["right"][0]
 
-    def get_y_right(self):
-        return self.results["right"][1]
+    def get_y_right(self) -> float:
+        if self.analyzer.gui: return self._get_y_from_x(
+                self.analyzer.data, float(self.analyzer.cursor_right_vertical.value()))
+        else: return self.results["right"][1]
+
+
+    def _get_y_from_x(self, data, value):
+
+        x_label, y_label = list(data.keys())
+
+        if x_label == y_label:
+            y_i = value  # assume same values for same key
+        else:
+            # WARNING: bad because assume regular spacing
+            two_closest = data.iloc[(data[x_label] - value).abs().argsort()[:2]]
+
+            x1 = two_closest[x_label].iloc[0]
+            x2 = two_closest[x_label].iloc[1]
+            y1 = two_closest[y_label].iloc[0]
+            y2 = two_closest[y_label].iloc[1]
+
+            if x2 == x1:
+                y_i = y1
+            else:
+                a = (y2 - y1) / (x2 - x1)
+                b = y1 - a*x1
+                y_i = a*value + b
+
+        return y_i
 
 
     def get_target_x(self):
