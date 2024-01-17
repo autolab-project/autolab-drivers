@@ -5,6 +5,7 @@
 Supported instruments (identified):
 - MS9710B
 """
+import pandas as pd
 
 
 class Driver() :
@@ -43,10 +44,10 @@ class Driver() :
         self.allowed_res = (0.03, 0.05, 0.07, 0.1, 0.2, 0.5, 1)
         self.allowed_vbw = (10, 100, 200, 1000, 2000, 10000, 100000, 1000000)
         # could set function/unit depending on device
-        
+
     def _MS9740B_variables(self):
         self._MS9740A_variables()
-        
+
     def _set_closest(self, allowed_list, value):
         a = allowed_list
         index = min(range(len(a)), key=lambda i: abs(a[i]-value))
@@ -362,8 +363,8 @@ class Driver() :
         model.append({'element':'action','name':'stop_sweep',
                       'do':self.stop_sweep,
                       'help':"Stop sweep"})
-        model.append({'element':'action','name':'get_data',
-                      'do':self.get_data,
+        model.append({'element':'variable','name':'get_data',
+                      'read':self.get_data, 'type':pd.DataFrame,
                       'help':"Get sweep data"})
         model.append({'element':'action','name':'save_data',
                       'do':self.save_data,
