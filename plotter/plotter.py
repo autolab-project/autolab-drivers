@@ -122,36 +122,53 @@ class Driver :
 
         if gui:
             import pyqtgraph as pg
-            # Best practice with gui would be to only use addToQueue and setStatus to avoid messing with plotter
+            # Best practice with gui would be to only use addToQueue, getFromGui and setStatus to avoid messing with plotter
             self.gui = gui
 
-            pen = pg.mkPen(color=0.4, style=pg.QtCore.Qt.DashLine)
+            pen_gray = pg.mkPen(color=0.2, style=pg.QtCore.Qt.DashLine)
+            pen_gray_2 = pg.mkPen(color=0.2, style=pg.QtCore.Qt.DashLine)
             pen_r = pg.mkPen(color="r", style=pg.QtCore.Qt.DashLine)
-            pen_g = pg.mkPen(color="g", style=pg.QtCore.Qt.DashLine)
+            pen_g = pg.mkPen(color=(50, 180, 10), style=pg.QtCore.Qt.DashLine)  # darker green
             pen_b = pg.mkPen(color="b", style=pg.QtCore.Qt.DashLine)
-            # OPTIMIZE: search for a way to plot using span=(-1e99, 1e99) but still updating when adding to plot
-            self.cursor_left_vertical = pg.InfiniteLine(movable=True, angle=90, pen=pen_b, name="Cursor left y")
-            self.cursor_right_vertical = pg.InfiniteLine(movable=True, angle=90, pen=pen_r, name="Cursor right y")
-            self.cursor_extremum_horizontal = pg.InfiniteLine(movable=True, angle=0, pen=pen_g, name="Cursor max")
-            self.cursor_left_horizontal = pg.InfiniteLine(movable=True, angle=0, pen=pen, name="Cursor left x")
-            self.cursor_right_horizontal = pg.InfiniteLine(movable=True, angle=0, pen=pen, name="Cursor right x")
 
-            self.cursor_left_vertical.hide()
-            self.cursor_right_vertical.hide()
-            self.cursor_extremum_horizontal.hide()
-            self.cursor_left_horizontal.hide()
-            self.cursor_right_horizontal.hide()
+            # Cursors needs to be created by gui to have proper signals (dragged)
+            self.gui.addToQueue('create', self, 'Cursor left vertical', pg.InfiniteLine, angle=90, pen=pen_b, hoverPen="b", name='Cursor left vertical',
+                **{'movable': True, 'label': 'x={value:.7g}', 'labelOpts': {
+                    'position': 0.1, 'color': 'b', 'movable': True, 'fill': (200, 200, 200, 50)}})
+            self.gui.addToQueue('create', self, 'Cursor right vertical', pg.InfiniteLine, angle=90, pen=pen_r, hoverPen="r", name='Cursor right vertical',
+                **{'movable': True, 'label': 'x={value:.7g}', 'labelOpts': {
+                    'position': 0.2, 'color': 'r', 'movable': True, 'fill': (200, 200, 200, 50)}})
+            self.gui.addToQueue('create', self, 'Cursor extremum horizontal', pg.InfiniteLine, angle=0, pen=pen_g, hoverPen=(50, 180, 10), name='Cursor extremum horizontal',
+                **{'movable': True, 'label': 'y={value:.7g}', 'labelOpts': {
+                    'position': 0.5, 'color': (50, 180, 10), 'movable': True, 'fill': (200, 200, 200, 50)}})
+            self.gui.addToQueue('create', self, 'Cursor left horizontal', pg.InfiniteLine, angle=0, pen=pen_gray, hoverPen=0.2, name='Cursor left horizontal',
+                **{'movable': True, 'label': 'y={value:.7g}', 'labelOpts': {
+                    'position': 0.5, 'color': 0.2, 'movable': True, 'fill': (200, 200, 200, 50)}})
+            self.gui.addToQueue('create', self, 'Cursor right horizontal', pg.InfiniteLine, angle=0, pen=pen_gray_2, hoverPen=0.7, name='Cursor right horizontal',
+                **{'movable': True, 'label': 'y={value:.7g}', 'labelOpts': {
+                    'position': 0.6, 'color': 0.7, 'movable': True, 'fill': (200, 200, 200, 50)}})
+
+            # Because cursors are created by gui, need to get variables from gui (gui will return value once created)
+            self.cursor_left_vertical = self.gui.getFromGui(self, 'Cursor left vertical')
+            if self.cursor_left_vertical: self.cursor_left_vertical.hide()
+            self.cursor_right_vertical = self.gui.getFromGui(self, 'Cursor right vertical')
+            if self.cursor_right_vertical: self.cursor_right_vertical.hide()
+            self.cursor_extremum_horizontal = self.gui.getFromGui(self, 'Cursor extremum horizontal')
+            if self.cursor_extremum_horizontal: self.cursor_extremum_horizontal.hide()
+            self.cursor_left_horizontal = self.gui.getFromGui(self, 'Cursor left horizontal')
+            if self.cursor_left_horizontal: self.cursor_left_horizontal.hide()
+            self.cursor_right_horizontal = self.gui.getFromGui(self, 'Cursor right horizontal')
+            if self.cursor_right_horizontal: self.cursor_right_horizontal.hide()
+
+            self.cursor_name_list = [
+                'Cursor left vertical', 'Cursor right vertical',
+                'Cursor extremum horizontal', 'Cursor left horizontal',
+                'Cursor right horizontal']
 
             self.cursor_list = [
-                self.cursor_left_vertical, self.cursor_right_vertical, self.cursor_extremum_horizontal,
-                self.cursor_left_horizontal, self.cursor_right_horizontal]
-
-            self.gui.addToQueue('add', self.cursor_list)
-
-            # def handle_sig_dragged(obj):  # not useful in driver because isn't triggered. In plotter work but useless
-            #     assert obj is self.cursor_left_vertical
-            #     print(obj.value())
-            # self.cursor_left_vertical.sigDragged.connect(handle_sig_dragged)
+                self.cursor_left_vertical, self.cursor_right_vertical,
+                self.cursor_extremum_horizontal, self.cursor_left_horizontal,
+                self.cursor_right_horizontal]
         else:
             self.gui = None
 
@@ -281,10 +298,6 @@ class Driver :
             assert len(cursors_coordinate) == 3, f"This function only works with 3 cursors, {len(cursors_coordinate)} were given"
             (left, extremum, right) = cursors_coordinate
 
-            # Stupid but only way to refresh cursor size...
-            self.gui.addToQueue('remove', self.cursor_list)
-            self.gui.addToQueue('add', self.cursor_list)
-
             if len(self.data) != 0:
                 if self.x_label == self.y_label:
                     x_data = np.array(self.data.values[:,0])
@@ -293,8 +306,10 @@ class Driver :
                     x_data = self.data[self.x_label]
                     y_data = self.data[self.y_label]
 
-                bounds_vertical = [x_data.min(), x_data.max()]
-                bounds_horizontal = [y_data.min(), y_data.max()]
+                bounds_vertical = [np.nextafter(x_data.min(), x_data.min()-1),
+                                   np.nextafter(x_data.max(), x_data.max()+1)]
+                bounds_horizontal = [np.nextafter(y_data.min(), y_data.min()-1),
+                                     np.nextafter(y_data.max(), y_data.max()+1)]
 
                 self.cursor_left_vertical.setBounds(bounds_vertical)
                 self.cursor_right_vertical.setBounds(bounds_vertical)
@@ -386,7 +401,7 @@ class Driver :
         return config
 
     def close(self):
-            self.gui.addToQueue('remove', self.cursor_list)
+            self.gui.addToQueue('remove', self, self.cursor_name_list, self.cursor_list)
 
 class Driver_DEFAULT(Driver):
     def __init__(self, **kwargs):
@@ -587,6 +602,8 @@ class BandwidthModule:
                 self.analyzer.data, float(self.analyzer.cursor_right_vertical.value()))
         else: return self.results["right"][1]
 
+    def get_x_width(self):
+        return abs(self.get_x_right() - self.get_x_left())
 
     def _get_y_from_x(self, data, value):
 
@@ -731,6 +748,10 @@ class BandwidthModule:
                        'type':float,
                        'help':'Return y_right value'})
 
+        config.append({'element':'variable','name':'x_width',
+                       'read':self.get_x_width,
+                       'type':float,
+                       'help':'Return x_width value'})
 
         config.append({'element':'variable','name':'depth',
                        'read_init':True,
