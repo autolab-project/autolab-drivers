@@ -131,39 +131,32 @@ class Driver :
             pen_g = pg.mkPen(color=(50, 180, 10), style=pg.QtCore.Qt.DashLine)  # darker green
             pen_b = pg.mkPen(color="b", style=pg.QtCore.Qt.DashLine)
 
-            # Cursors needs to be created by gui to have proper signals (dragged)
-            self.gui.addToQueue('create', self, 'Cursor left vertical', pg.InfiniteLine, angle=90, pen=pen_b, hoverPen="b", name='Cursor left vertical',
+            # Widgets (InfiniteLine) needs to be created by gui to have correct connection to thread
+            # Need to wait until gui returns a widget because they are created on a different thread
+            self.cursor_left_vertical = self.gui.createWidget(pg.InfiniteLine, angle=90, pen=pen_b, hoverPen="b", name='Cursor left vertical',
                 **{'movable': True, 'label': 'x={value:.7g}', 'labelOpts': {
                     'position': 0.1, 'color': 'b', 'movable': True, 'fill': (200, 200, 200, 50)}})
-            self.gui.addToQueue('create', self, 'Cursor right vertical', pg.InfiniteLine, angle=90, pen=pen_r, hoverPen="r", name='Cursor right vertical',
+            if self.cursor_left_vertical: self.cursor_left_vertical.hide()
+
+            self.cursor_right_vertical = self.gui.createWidget(pg.InfiniteLine, angle=90, pen=pen_r, hoverPen="r", name='Cursor right vertical',
                 **{'movable': True, 'label': 'x={value:.7g}', 'labelOpts': {
                     'position': 0.2, 'color': 'r', 'movable': True, 'fill': (200, 200, 200, 50)}})
-            self.gui.addToQueue('create', self, 'Cursor extremum horizontal', pg.InfiniteLine, angle=0, pen=pen_g, hoverPen=(50, 180, 10), name='Cursor extremum horizontal',
+            if self.cursor_right_vertical: self.cursor_right_vertical.hide()
+
+            self.cursor_extremum_horizontal = self.gui.createWidget(pg.InfiniteLine, angle=0, pen=pen_g, hoverPen=(50, 180, 10), name='Cursor extremum horizontal',
                 **{'movable': True, 'label': 'y={value:.7g}', 'labelOpts': {
                     'position': 0.5, 'color': (50, 180, 10), 'movable': True, 'fill': (200, 200, 200, 50)}})
-            self.gui.addToQueue('create', self, 'Cursor left horizontal', pg.InfiniteLine, angle=0, pen=pen_gray, hoverPen=0.2, name='Cursor left horizontal',
+            if self.cursor_extremum_horizontal: self.cursor_extremum_horizontal.hide()
+
+            self.cursor_left_horizontal = self.gui.createWidget(pg.InfiniteLine, angle=0, pen=pen_gray, hoverPen=0.2, name='Cursor left horizontal',
                 **{'movable': True, 'label': 'y={value:.7g}', 'labelOpts': {
                     'position': 0.5, 'color': 0.2, 'movable': True, 'fill': (200, 200, 200, 50)}})
-            self.gui.addToQueue('create', self, 'Cursor right horizontal', pg.InfiniteLine, angle=0, pen=pen_gray_2, hoverPen=0.7, name='Cursor right horizontal',
+            if self.cursor_left_horizontal: self.cursor_left_horizontal.hide()
+
+            self.cursor_right_horizontal = self.gui.createWidget(pg.InfiniteLine, angle=0, pen=pen_gray_2, hoverPen=0.7, name='Cursor right horizontal',
                 **{'movable': True, 'label': 'y={value:.7g}', 'labelOpts': {
                     'position': 0.6, 'color': 0.7, 'movable': True, 'fill': (200, 200, 200, 50)}})
-
-            # Because cursors are created by gui, need to get variables from gui (gui will return value once created)
-            self.cursor_left_vertical = self.gui.getFromGui(self, 'Cursor left vertical')
-            if self.cursor_left_vertical: self.cursor_left_vertical.hide()
-            self.cursor_right_vertical = self.gui.getFromGui(self, 'Cursor right vertical')
-            if self.cursor_right_vertical: self.cursor_right_vertical.hide()
-            self.cursor_extremum_horizontal = self.gui.getFromGui(self, 'Cursor extremum horizontal')
-            if self.cursor_extremum_horizontal: self.cursor_extremum_horizontal.hide()
-            self.cursor_left_horizontal = self.gui.getFromGui(self, 'Cursor left horizontal')
-            if self.cursor_left_horizontal: self.cursor_left_horizontal.hide()
-            self.cursor_right_horizontal = self.gui.getFromGui(self, 'Cursor right horizontal')
             if self.cursor_right_horizontal: self.cursor_right_horizontal.hide()
-
-            self.cursor_name_list = [
-                'Cursor left vertical', 'Cursor right vertical',
-                'Cursor extremum horizontal', 'Cursor left horizontal',
-                'Cursor right horizontal']
 
             self.cursor_list = [
                 self.cursor_left_vertical, self.cursor_right_vertical,
@@ -283,7 +276,7 @@ class Driver :
                 self.displayCursors([(None,None)]*3)
 
     def refresh_gui(self):
-        if self.gui and self.isDisplayCursor:
+        if self.gui:
             results = self.bandwidth.results
             cursors_coordinate = (results["left"], results["extremum"], results["right"])
 
@@ -291,6 +284,9 @@ class Driver :
                 self.displayCursors(cursors_coordinate)
             except Exception as error:
                 self.gui.setStatus(f"Can't display markers: {error}",10000, False)
+
+            if not self.isDisplayCursor:
+                for cursor in self.cursor_list: cursor.hide()
 
     def displayCursors(self, cursors_coordinate):
 
@@ -373,23 +369,23 @@ class Driver :
                            'read':self.get_displayCursor, 'write':self.set_displayCursor,
                            "help": "Select if want to display cursors"})
 
-        else:
-            config.append({'element':'module','name':'info','object':getattr(self,'info')})
+        # else:
+        config.append({'element':'module','name':'info','object':getattr(self,'info')})
 
-            config.append({'element':'action','name':'open',
-                           'do':self.open,
-                           "param_type":str,
-                           "param_unit":"filename",
-                           'help':'Open DataFrame with the provided filename'})
+        config.append({'element':'action','name':'open',
+                       'do':self.open,
+                       "param_type":str,
+                       "param_unit":"filename",
+                       'help':'Open DataFrame with the provided filename'})
 
-            config.append({'element':'variable','name':'data','type':pd.DataFrame,
-                           'read':self.get_data,
-                           "help": "Return DataFrame stored"})
+        config.append({'element':'variable','name':'data','type':pd.DataFrame,
+                       'read':self.get_data,
+                       "help": "Return DataFrame stored"})
 
-            config.append({'element':'action','name':'set_data',
-                            'do':self.set_data,
-                            'param_type':pd.DataFrame,
-                            'help':'Add DataFrame to device. In GUI, use $eval:df with df being for example dummy.array_1D() or any other df from another device.'})
+        config.append({'element':'action','name':'set_data',
+                        'do':self.set_data,
+                        'param_type':pd.DataFrame,
+                        'help':'Add DataFrame to device. In GUI, use $eval:df with df being for example dummy.array_1D() or any other df from another device.'})
 
         config.append({'element':'module','name':'min','object':getattr(self,'min')})
         config.append({'element':'module','name':'max','object':getattr(self,'max')})
@@ -401,7 +397,8 @@ class Driver :
         return config
 
     def close(self):
-            self.gui.addToQueue('remove', self, self.cursor_name_list, self.cursor_list)
+        for cursor in self.cursor_list:
+            self.gui.removeWidget(cursor)
 
 class Driver_DEFAULT(Driver):
     def __init__(self, **kwargs):
@@ -582,7 +579,7 @@ class BandwidthModule:
         else: return self.results["left"][0]
 
     def get_y_left(self) -> float:
-        if self.analyzer.gui: return self._get_y_from_x(
+        if self.analyzer.gui and len(self.analyzer.data) != 0: return self._get_y_from_x(
                 self.analyzer.data, float(self.analyzer.cursor_left_vertical.value()))
         else: return self.results["left"][1]
 
@@ -598,7 +595,7 @@ class BandwidthModule:
         else: return self.results["right"][0]
 
     def get_y_right(self) -> float:
-        if self.analyzer.gui: return self._get_y_from_x(
+        if self.analyzer.gui and len(self.analyzer.data) != 0: return self._get_y_from_x(
                 self.analyzer.data, float(self.analyzer.cursor_right_vertical.value()))
         else: return self.results["right"][1]
 
@@ -607,7 +604,8 @@ class BandwidthModule:
 
     def _get_y_from_x(self, data, value):
 
-        x_label, y_label = list(data.keys())
+        x_label = self.analyzer.x_label
+        y_label = self.analyzer.y_label
 
         if x_label == y_label:
             y_i = value  # assume same values for same key
