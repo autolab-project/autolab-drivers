@@ -44,7 +44,7 @@ class Driver(GUI):
         """
         Used by the GUI
         """
-
+        print("Need to redo this driver to work with new autolab version")  # TODO: redo driver
         model = []
 
         model.append({'element':'action','name':'Measurement_loop',\

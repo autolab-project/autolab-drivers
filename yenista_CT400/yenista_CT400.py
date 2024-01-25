@@ -1073,13 +1073,17 @@ class Driver():
 
         interface = self.__dict__.get("interface")
         if interface is not None:
-            config.append({'element':'module','name':'interface','object':getattr(self,'interface')})
+            config.append({'element':'module','name':'interface','object':getattr(self,'interface'),
+                           'help': "Module imported from driver 'plotter'. Can be used to compute bandwidth."})
 
-        config.append({'element':'module','name':'detectors','object':getattr(self,'detectors')})
+        config.append({'element':'module','name':'detectors','object':getattr(self,'detectors'),
+                       'help': 'Module to measure detectors power.'})
         for i in range(1,self.nl+1):
-            config.append({'element':'module','name':f'laser{i}','object':getattr(self,f'laser{i}')})
+            config.append({'element':'module','name':f'laser{i}','object':getattr(self,f'laser{i}'),
+                           'help': f'Module to control laser{i} using {self.model} commands.'})
 
-        config.append({'element':'module','name':'scan','object':getattr(self,'scan')})
+        config.append({'element':'module','name':'scan','object':getattr(self,'scan'),
+                       'help': 'Module to set and do wavelength scan.'})
 
         return config
 

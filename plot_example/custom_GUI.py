@@ -141,7 +141,7 @@ class GUI():
         self.set_ylabel("y")
         self.set_title("title")
 
-    def openGUI(self, main=False):
+    def openGUI(self, main=False):  # TODO: change it to match new feature with gui queue
         """ This function create the canvas.
         openGUI is a special name so Autolab can linked to it. Don't change it.
         Can only be called from Autolab's top menu, once the driver has been initialized by clicking on it in the controlcenter. """
