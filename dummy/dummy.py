@@ -4,10 +4,12 @@ Created on Fri May 17 16:36:53 2019
 
 @author: quentin.chateiller
 """
-import numpy as np
-import time
-import pandas as pd
 
+from typing import Tuple, List
+import time
+
+import numpy as np
+import pandas as pd
 
 
 class Driver():
@@ -16,209 +18,275 @@ class Driver():
 
         self.amp = 1
 
-        self.slot1 = Slot(self,1)
-        self.slot2 = Slot(self,2)
+        self.slot1 = Slot(self, 1)
+        self.slot2 = Slot(self, 2)
 
         self.option = True
 
         self.count = 0
-        self.phrase = 'Coucou'
+        self.phrase = 'Hello there'
         self.sleep = 0
         #raise ValueError('Test error')
         self.constant = 0
         self._nbpts = 1000
+        self._array_custorm = np.array([])
+        self._tuple = (["item1", "item2", "item3"], 0)  # int correspond to index of selected item
 
         self.verbose = False
         self.instance_active = True
 
-    def set_sleep(self,value):
-        self.sleep = value
+    def set_sleep(self, value: float):
+        self.sleep = float(value)
 
-    def get_sleep(self):
-        return self.sleep
+    def get_sleep(self) -> float:
+        return float(self.sleep)
 
-    def set_verbose(self,value):
+    def set_verbose(self, value: bool):
         if value == "False": value = False
         elif value == "True": value = True
         self.verbose = bool(int(float(value)))
         print("Activate verbose") if self.verbose else print("Deactivate verbose")
 
-    def get_verbose(self):
+    def get_verbose(self) -> bool:
         return self.verbose
 
-    def get_amplitude(self):
+    def get_amplitude(self) -> float:
         time.sleep(self.sleep)
-        if not self.instance_active:
-            raise ValueError("DUMMY DEVICE IS CLOSED")
-        #raise ValueError('Test error')
-        #self.count += 1
-#        if np.random.uniform() > 0.5 : sign = 1
-#        else : sign = -1
-#        self.amp = self.amp*(1+sign*np.random.uniform()*0.1)
-#        if self.count == 100 :
-#            raise ValueError()
+        if not self.instance_active: raise ValueError("DUMMY DEVICE IS CLOSED")
         value = self.amp + np.random.uniform(-1, 1)*0.01
-
-        if self.verbose : print('get amplitude',value)
-
+        if self.verbose: print('get amplitude', value)
         return value
 
-    def set_phrase(self,phrase):
+    def set_phrase(self, phrase: str):
         time.sleep(self.sleep)
-        assert isinstance(phrase,str)
-        self.phrase = phrase
-        if self.verbose : print('set phrase',self.phrase)
+        assert isinstance(phrase, str)
+        self.phrase = str(phrase)
+        if self.verbose: print('set phrase', self.phrase)
 
-    def get_phrase(self):
+    def get_phrase(self) -> str:
         time.sleep(self.sleep)
-        if self.verbose : print('get phrase',self.phrase)
-        return self.phrase
+        if self.verbose: print('get phrase', self.phrase)
+        return str(self.phrase)
 
-    def set_amplitude(self,value):
+    def set_amplitude(self, value: float):
         time.sleep(self.sleep)
         if not self.instance_active:
             raise ValueError("DUMMY DEVICE IS CLOSED")
-        self.amp = value
-        if self.verbose : print('set amplitude',self.amp)
+        self.amp = float(value)
+        if self.verbose: print('set amplitude', self.amp)
         #raise ValueError('Test error')
 
-    def get_phase(self):
+    def get_phase(self) -> float:
         time.sleep(self.sleep)
         value = np.random.uniform(-1, 1)
-        if self.verbose : print('get phase',value)
+        if self.verbose: print('get phase', value)
         return value
 
-    def set_phase(self,value):
+    def set_phase(self, value: float):
         time.sleep(self.sleep)
         self.phase = value
-        if self.verbose : print('set phase',value)
+        if self.verbose: print('set phase', value)
 
     def do_sth(self):
         time.sleep(self.sleep)
-        if self.verbose : print('do sth')
+        if self.verbose: print('do sth')
         #raise ValueError('Test error')
 
-    def get_dataframe(self):
+    def get_dataframe(self) -> pd.DataFrame:
         df = pd.DataFrame()
         df["x"] = np.linspace(1500, 1600, self._nbpts)
         mu = self.constant + df["x"].mean()
         sigma = 20
-        df["y"] = (0.6*np.random.random(len(df))+1)*50/(sigma * np.sqrt(2 * np.pi)) * np.exp( - (df["x"] - mu)**2 / (2 * sigma**2) )
+        df["y"] = ((1 + 0.6*np.random.random(len(df)))
+                   * 50 / (sigma * np.sqrt(2 * np.pi))
+                   * np.exp(-(df["x"] - mu)**2 / (2 * sigma**2)))
         # d = {'e':1,'f':2}
         # df=df.append(d,ignore_index=True)
         time.sleep(self.sleep)
-        if self.verbose : print('get dataframe',df)
+        if self.verbose: print('get dataframe', df)
         return df
 
-    def set_option(self,value):
+    def set_option(self, value: bool):
         time.sleep(self.sleep)
         self.option = bool(value)
-        if self.verbose : print('set option',self.option)
+        if self.verbose: print('set option', self.option)
 
-    def get_option(self):
+    def get_option(self) -> bool:
         time.sleep(self.sleep)
-        if self.verbose : print('get option',self.option)
-        return self.option
+        if self.verbose: print('get option', self.option)
+        return bool(self.option)
 
-    def get_array(self):
+    def get_array_custom(self) -> np.ndarray:
         time.sleep(self.sleep)
-        return np.ones((3,4))
+        return np.array(self._array_custorm)
 
-    def get_array_1D(self):
+    def set_array_custom(self, value: np.ndarray):
         time.sleep(self.sleep)
-        return np.random.random(self._nbpts)+self.constant
+        value = np.array(value)
+        self._array_custorm = value
 
-    def get_array_2D(self):
+    def get_array(self) -> np.ndarray:
+        time.sleep(self.sleep)
+        return np.ones((3, 4))
+
+    def get_array_1D(self) -> np.ndarray:
+        time.sleep(self.sleep)
+        return np.random.random(self._nbpts) + self.constant
+
+    def get_array_2D(self) -> np.ndarray:
         time.sleep(self.sleep)
         x = np.linspace(1500, 1600, self._nbpts)
         mu = self.constant + x.mean()
         sigma = 20
-        y = (0.6*np.random.random(len(x))+1)*50/(sigma * np.sqrt(2 * np.pi)) * np.exp( - (x - mu)**2 / (2 * sigma**2) )
-        array_2D = np.array([x,y]).T
+        y = ((1 + 0.6*np.random.random(len(x)))
+                   * 50 / (sigma * np.sqrt(2 * np.pi))
+                   * np.exp(-(x - mu)**2 / (2 * sigma**2)))
+        array_2D = np.array([x, y]).T
         # array_2D = np.random.random((self._nbpts,2))
         return array_2D
 
-    def get_array_3D(self):
+    def get_array_3D(self) -> np.ndarray:
         return np.random.normal(size=(200, 200))
 
-    def get_Image(self):
+    def get_Image(self) -> np.ndarray:
         import os
         from PIL import Image
-        img = np.asarray(Image.open(os.path.join(os.path.dirname(__file__), 'dummy_image.jpg')))
+        img = np.asarray(Image.open(
+            os.path.join(os.path.dirname(__file__), 'dummy_image.jpg')))
         lum_img = img[:, :, 0]
-        return lum_img + np.random.normal(size=lum_img.shape, scale=10+self.constant)
+        return lum_img + np.random.normal(
+            size=lum_img.shape, scale=10+self.constant).astype(np.int64)
 
-    def get_constant(self):
-        return self.constant
+    def open_filename(self, value: str):
+        time.sleep(self.sleep)
+        if self.verbose: print('Open', value)
 
-    def set_constant(self,value):
-        self.constant = value
+    def save_filename(self, value: str):
+        time.sleep(self.sleep)
+        if self.verbose: print('Save', value)
 
-    def get_nbpts(self):
-        return self._nbpts
+    def get_constant(self) -> float:
+        return float(self.constant)
 
-    def set_nbpts(self,value):
-        self._nbpts = value
+    def set_constant(self, value: float):
+        self.constant = float(value)
 
-    def get_driver_model(self):
+    def get_nbpts(self) -> int:
+        return int(self._nbpts)
+
+    def set_nbpts(self, value: int):
+        self._nbpts = int(value)
+
+    def get_tuple(self) -> Tuple[List[str], int]:
+        if self.verbose: print('get tuple', self._tuple)
+        return tuple(self._tuple)
+
+    def set_tuple(self, value: Tuple[List[str], int]):
+        if self.verbose: print('set tuple', value)
+        self._tuple = tuple(value)
+        if self.verbose: print('do something with tuple item:', value[0][value[1]])
+
+    def get_tuple_item(self) -> str:
+        tuple = self.get_tuple()
+        tuple_item = tuple[0][tuple[1]]
+        if self.verbose: print('get tuple item', tuple_item)
+        return tuple_item
+
+
+    def get_driver_model(self) -> List[dict]:
 
         model = []
 
-        for i in range(10) :
-            if hasattr(self,f'slot{i}') :
-                model.append({'element':'module','name':f'slot{i}','object':getattr(self,f'slot{i}')})
+        for i in range(10):
+            if hasattr(self, f'slot{i}'):
+                model.append({'element': 'module', 'name': f'slot{i}',
+                              'object': getattr(self, f'slot{i}')})
 
-        model.append({'element':'variable','name':'amplitude','type':float,'unit':'V','read':self.get_amplitude,'write':self.set_amplitude,'help':'This is the amplitude of the device...'})
-        model.append({'element':'variable','name':'phrase','type':str,'read':self.get_phrase,'write':self.set_phrase})
-        model.append({'element':'variable','name':'phase','type':float,'read':self.get_phase,'write':self.set_phase})
-        model.append({'element':'action','name':'something','do':self.do_sth,'help':'This do something...'})
-        model.append({'element':'variable','name':'dataframe','type':pd.DataFrame,'read':self.get_dataframe})
-        model.append({'element':'variable','name':'option','type':bool,'read_init':True,'read':self.get_option,'write':self.set_option})
-        model.append({'element':'variable','name':'array','type':np.ndarray,'read':self.get_array})
-        model.append({'element':'variable','name':'array_1D','type':np.ndarray,'read':self.get_array_1D})
-        model.append({'element':'variable','name':'array_2D','type':np.ndarray,'read':self.get_array_2D})
-        model.append({'element':'variable','name':'array_3D','type':np.ndarray,'read':self.get_array_3D})
-        model.append({'element':'variable','name':'Image','type':np.ndarray,'read':self.get_Image})
-        model.append({'element':'variable','name':'sleep','type':float,'read':self.get_sleep,'write':self.set_sleep})
-        model.append({'element':'variable','name':'verbose','type':bool,'read_init':True,'read':self.get_verbose,'write':self.set_verbose})
-        model.append({'element':'variable','name':'constant','type':float,'read':self.get_constant,'write':self.set_constant,'help':'Constant variable.'})
-        model.append({'element':'variable','name':'nbpts','type':int,'read':self.get_nbpts,'write':self.set_nbpts,'help':'Set number of point for aray_1D, array_2D and dataframe.'})
-
+        model.append({'element': 'variable', 'name': 'amplitude', 'type': float, 'unit': 'V',
+                      'read': self.get_amplitude, 'write': self.set_amplitude,
+                      'help':'This is the amplitude of the device...'})
+        model.append({'element': 'variable', 'name': 'phrase', 'type': str,
+                      'read': self.get_phrase, 'write': self.set_phrase})
+        model.append({'element': 'variable', 'name': 'phase', 'type': float,
+                      'read': self.get_phase, 'write': self.set_phase})
+        model.append({'element': 'action', 'name': 'something',
+                      'do': self.do_sth, 'help': 'This do something...'})
+        model.append({'element': 'variable', 'name': 'dataframe', 'type': pd.DataFrame,
+                      'read': self.get_dataframe})
+        model.append({'element': 'variable', 'name': 'option', 'type': bool,
+                      'read_init': True, 'read': self.get_option, 'write': self.set_option})
+        model.append({'element': 'variable', 'name': 'array', 'type': np.ndarray,
+                      'read': self.get_array})
+        model.append({'element': 'variable', 'name': 'array_1D', 'type': np.ndarray,
+                      'read': self.get_array_1D})
+        model.append({'element': 'variable', 'name': 'array_2D', 'type': np.ndarray,
+                      'read': self.get_array_2D})
+        model.append({'element': 'variable', 'name': 'array_3D', 'type': np.ndarray,
+                      'read': self.get_array_3D})
+        model.append({'element': 'variable', 'name': 'array_custom', 'type': np.ndarray,
+                      'read_init': True, 'read': self.get_array_custom, 'write': self.set_array_custom})
+        model.append({'element': 'variable', 'name': 'Image', 'type': np.ndarray,
+                      'read': self.get_Image})
+        model.append({'element': 'variable', 'name': 'sleep', 'type': float,
+                      'read': self.get_sleep, 'write': self.set_sleep})
+        model.append({'element': 'variable', 'name': 'verbose', 'type': bool,
+                      'read_init': True, 'read': self.get_verbose, 'write': self.set_verbose})
+        model.append({'element': 'variable', 'name': 'constant', 'type': float,
+                      'read': self.get_constant, 'write': self.set_constant,
+                      'help': 'Constant variable.'})
+        model.append({'element': 'variable', 'name': 'nbpts', 'type': int,
+                      'read': self.get_nbpts, 'write': self.set_nbpts,
+                      'help': 'Set number of point for aray_1D, array_2D and dataframe.'})
+        model.append({'element': 'action', 'name': 'open_file', "param_type": str, "param_unit": "open-file",
+                      'do': self.open_filename, 'help': 'This minmic open file'})
+        model.append({'element': 'action', 'name': 'save_file', "param_type": str, "param_unit": "save-file",
+                      'do': self.save_filename, 'help': 'This minmic save file'})
+        model.append({'element': 'variable', 'name': 'tuple', 'type': tuple,
+                      'read': self.get_tuple, 'write': self.set_tuple,
+                      'help': 'Select one item among a list'})
+        model.append({'element': 'variable', 'name': 'tuple_read_only', 'type': tuple,
+                      'read': self.get_tuple,
+                      'help': 'See tuple?'})
+        model.append({'element': 'variable', 'name': 'tuple_item', 'type': str,
+                      'read': self.get_tuple_item,
+                      'help': 'See which item is selected in variable tuple'})
         return model
 
 
 class Driver_CONN(Driver):
 
-    def __init__(self,address='192.168.0.8',**kwargs):
-        print('DUMMY DEVICE INSTANTIATED with address',address)
+    def __init__(self, address: str = '192.168.0.8', **kwargs):
+        print('DUMMY DEVICE INSTANTIATED with address', address)
 
-        Driver.__init__(self,**kwargs)
+        Driver.__init__(self, **kwargs)
 
     def close(self):
         print('DUMMY DEVICE CLOSED')
         self.instance_active = False
 
 
-class Slot() :
+class Slot():
 
-    def __init__(self,dev,num):
+    def __init__(self, dev: Driver, num: int):
         self.dev = dev
         self.num = num
 
-    def get_power(self):
+    def get_power(self) -> float:
         time.sleep(self.dev.sleep)
         value = np.random.uniform()
-        if self.dev.verbose : print(f'slot {self.num} get power',value)
+        if self.dev.verbose: print(f'slot {self.num} get power', value)
         return value
 
-    def get_wavelength(self):
+    def get_wavelength(self) -> float:
         time.sleep(self.dev.sleep)
         value = np.random.uniform()
-        if self.dev.verbose : print(f'slot {self.num} get wavelength',value)
+        if self.dev.verbose: print(f'slot {self.num} get wavelength', value)
         return value
 
-    def get_driver_model(self):
+    def get_driver_model(self) -> List[dict]:
         config = []
-        config.append({'element':'variable','name':'power','type':float,'read':self.get_power,'unit':'W'})
-        config.append({'element':'variable','name':'wavelength','type':float,'read':self.get_wavelength,'unit':'nm'})
+        config.append({'element': 'variable', 'name': 'power', 'type': float, 'unit': 'W',
+                       'read': self.get_power})
+        config.append({'element': 'variable', 'name': 'wavelength', 'type': float, 'unit': 'nm',
+                       'read': self.get_wavelength})
         return config
