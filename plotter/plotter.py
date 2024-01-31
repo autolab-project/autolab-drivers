@@ -375,7 +375,7 @@ class Driver :
         config.append({'element':'action','name':'open',
                        'do':self.open,
                        "param_type":str,
-                       "param_unit":"filename",
+                       "param_unit":"open-file",
                        'help':'Open DataFrame with the provided filename'})
 
         config.append({'element':'variable','name':'data','type':pd.DataFrame,
