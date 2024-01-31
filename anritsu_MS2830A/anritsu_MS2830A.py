@@ -118,7 +118,7 @@ class Driver():
                       'help':'Repeat measurement forever'})
 
         model.append({'element': 'action', 'name': 'save_waveform',
-                      'param_type': str, # 'param_unit': 'filename', <- only useful if save on same computer! Here not the case
+                      'param_type': str, # don't use 'param_unit': 'save-file', only useful if save on same computer! Here not the case
                       'do': self.save_waveform,
                       'help':'Saves waveform to instrument'})
 
