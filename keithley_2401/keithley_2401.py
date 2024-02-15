@@ -7,6 +7,7 @@ Keithley 2400, 2401
 -
 """
 
+category = 'Source measure unit (SMU)'
 
 
 class Driver():
@@ -144,5 +145,3 @@ class Driver_GPIB(Driver):
         pass
 ############################## Connections classes ##############################
 #################################################################################
-
-
