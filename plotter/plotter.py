@@ -4,6 +4,7 @@ Created on Mon Jun 13 21:26:10 2022
 
 @author: jonathan
 """
+category = "Plotter"
 
 import csv
 import sys
@@ -15,6 +16,8 @@ try:
     from pandas._libs.lib import no_default
 except:
     no_default = None
+
+_import_once = True
 
 
 def find_delimiter(filename):
@@ -842,8 +845,13 @@ def find_local_extremum(x_data, y_data, target_x, level, order, comparator=np.gr
 
     """ Find local extremum with closest x value to target_x.
         order is used to filter local extremums. """
-
-    from scipy.signal import argrelextrema
+    global _import_once
+    if _import_once:
+        try:
+            _import_once = False
+            from scipy.signal import argrelextrema
+        except:
+            print("Cannot import argrelextrema from scipy.signal. Some features are not usable")
 
     extremum_array_index = argrelextrema(y_data, comparator, order=order)[0]
 

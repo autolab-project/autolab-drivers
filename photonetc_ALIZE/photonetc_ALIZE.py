@@ -3,13 +3,15 @@
 Supported instruments (identified):
 -
 """
+category = "Camera"
+
 import numpy as np
 
 
 class Driver():
 
     def __init__(self):
-        pass
+        self._nb_img = 1
 
     def abort(self):
         self.cam.abort()
@@ -38,11 +40,45 @@ class Driver():
         # metadata is pecamerapy.Metadata with method: counter, exposure_time, gpi_state, pitch, timestamp
         return img
 
+    def get_image_avg(self):
+        """ Capture N images and output average """
+        if self._nb_img == 1:
+            return self.get_one_image()
+
+        self.capture(self._nb_img)
+        average_img = list()
+
+        for i in range(self._nb_img):
+            image = self.get_image()
+            average_img.append(image)
+
+        average_img = np.mean(average_img, 0, dtype=image.dtype)
+        return average_img
+
+    def get_nb_img(self) -> int:
+        return int(self._nb_img)
+
+    def set_nb_img(self, value: int):
+        assert int(value) > 0, 'Average should be positive int'
+        self._nb_img = int(value)
+
+
     def get_driver_model(self):
         model = []
-        model.append({'element':'variable', 'name':'image',
-                      'read':self.get_one_image, 'type':np.ndarray,
-                      'help':'Capture and return a frame'})
+        model.append({'element': 'variable', 'name': 'image',
+                      'type': np.ndarray,
+                      'read': self.get_image_avg,
+                      'help': 'Capture and return one image or an average of N images using the average variable'})
+
+        model.append({'element': 'variable', 'name': 'average',
+                      'type': int,
+                      'read_init': True, 'read': self.get_nb_img, 'write': self.set_nb_img,
+                      'help': 'Number of images averaged during acquisition'})
+
+        model.append({'element': 'action', 'name': 'abort',
+                      'do': self.abort,
+                      'help': 'Abort image acquisition'})
+
         return model
 
 
@@ -61,24 +97,27 @@ class Driver_USB(Driver):
                     pecamerapy.OpenMode.USB2]
 
         CAMERA_FOUND = False
+        error = ''
         for mode in try_mode:
 
             # Find index, serial
             try:
                 index, serial = cam.find_first(mode)
-            except:
+            except Exception as e:
+                error = e
                 continue
 
             # Open the connection
             try:
                 cam.open(index, mode)
-            except pecamerapy.CommOpenError:
-                continue
+            except pecamerapy.CommOpenError as e:
+                error = e
+                break
             else:
                 CAMERA_FOUND = True
                 break
 
-        if not CAMERA_FOUND: raise ConnectionError('No camera found')
+        if not CAMERA_FOUND: raise ConnectionError(f'Error with camera: {error}')
 
         self.cam = cam
 

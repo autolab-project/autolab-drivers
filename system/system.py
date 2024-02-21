@@ -5,7 +5,7 @@
 Supported instruments (identified):
 -
 """
-
+category = "System"
 
 import time
 import os
