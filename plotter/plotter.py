@@ -845,7 +845,7 @@ def find_local_extremum(x_data, y_data, target_x, level, order, comparator=np.gr
 
     """ Find local extremum with closest x value to target_x.
         order is used to filter local extremums. """
-    global _import_once
+    global _import_once, argrelextrema
     if _import_once:
         try:
             _import_once = False
