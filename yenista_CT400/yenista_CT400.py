@@ -591,7 +591,8 @@ class Scan:
         self.config = self.dev.dev.config
         self._init_variables()
 
-        self._interpolate = False
+        self._interpolate = True
+        self.scan_running = False
 
         self.tcError = ct.create_string_buffer(1024)
 
@@ -711,11 +712,12 @@ class Scan:
             if laser is not None and laser._connected:
                 laser._state = ENABLE
 
+        self.scan_running = True
         self.controller.set_detector_array(self.uiHandle,
-                                           self._detector2_state,
-                                           self._detector3_state,
-                                           self._detector4_state,
-                                           DISABLE)  # eExt
+                                            self._detector2_state,
+                                            self._detector3_state,
+                                            self._detector4_state,
+                                            DISABLE)  # eExt
 
         self.controller.set_bnc(self.uiHandle, DISABLE, ct.c_double(0.0), ct.c_double(0.0), Unit_mW)
 
@@ -728,6 +730,7 @@ class Scan:
 
         iErrorID = self.controller.scan_wait_end(self.uiHandle, self.tcError)
 
+        self.scan_running = False
         assert iErrorID == 0, 'Error during sweep: '+repr(self.tcError.value)[2:-1]
 
         self._get_data_sweep()
@@ -960,6 +963,8 @@ class Detectors:
 
 
     def get_detector_power(self):
+        assert not self.dev.scan.scan_running, "Can't measure detector power during a scan"
+
         PowerArraySize = ct.c_double * 1
         (Pout, P1, P2, P3, P4, Vext) = (PowerArraySize(), PowerArraySize(), PowerArraySize(), PowerArraySize(), PowerArraySize(), PowerArraySize())
 
