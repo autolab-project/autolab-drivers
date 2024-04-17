@@ -56,6 +56,7 @@ class Driver():
             self._highest_frequency_in_ghz)
         # 12 decimals precision to match the precision on the screen
         self.write(f":SOUR:FREQ:CW {freq_in_ghz * 1e9:.12f}")
+        self.query("*OPC?")
 
     def get_power_in_dbm(self) -> float:
         ret = self.query(":SOUR:POW:LEV:IMM:AMPL?")
@@ -67,6 +68,7 @@ class Driver():
             self._highest_power_in_dbm)
         # 6 decimals for the precision of the instrument
         self.write(f":SOUR:POW:LEV:IMM:AMPL {power_in_dbm:.6f}")
+        self.query("*OPC?")
 
     def get_output_state(self) -> bool:
         # grabs the output state from the instrument directly
@@ -81,6 +83,7 @@ class Driver():
         back_to_bit = int(state)
         # Write 0 or 1 to the instrment for the output state
         self.write(f":OUTP:STAT {back_to_bit:d}")
+        self.query("*OPC?")
 
     def get_phase_in_degrees(self) -> float:
         ret = self.query(":SOUR:PHAS?")  # ret is by default in rad, and str
@@ -93,6 +96,7 @@ class Driver():
             self._highest_phase_in_degrees)
         # 9 decimals precision for the phase
         self.write(f":SOUR:PHAS:ADJ {phase:.9f} deg")
+        self.query("*OPC?")
 
     def get_driver_model(self):
         model = []
