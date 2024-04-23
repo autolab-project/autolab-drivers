@@ -1,258 +1,298 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
-Supported instruments (identified):
-- Keithley 2450
+Created on Wed Apr 17 14:27:16 2024
 
-Uses TSP commands
+@author: Hamza Dely, wrapped for combo-box by Victor
 """
+
+import math
 from typing import Tuple, List
 
-
-category = 'Source measure unit (SMU)'
-
-
-class Driver():
+class Driver:
 
     def __init__(self):
+        # Tuple for the available source modes, 1st item is the modes list,
+        # second is the index of the selected one 
+        self._source_modes = (['VOLT', 'CURR'], 0)
+        self._measure_modes = (['VOLT', 'CURR', 'RES'], 0)
+
+        self._volt_source_ranges = (['20 mV', '200 mV', '2 V', '20 V', '200 V'],
+                                    0)
+        self._curr_source_ranges = (['10 nA', '100 nA', '1 \u03bcA', '10 \u03bcA',
+                                     '100 \u03bcA', '1 mA', '10 mA', '100 mA',
+                                     '1 A'], 0)
+
+        self._volt_meas_ranges = (['20 mV', '200 mV', '2 V', '20 V', '200 V'],
+                                  0)
+        self._curr_meas_ranges = (['10 nA', '100 nA', '1 \u03bcA', '10 \u03bcA',
+                                   '100 \u03bcA', '1 mA', '10 mA', '100 mA',
+                                   '1 A'], 0)
+
+        # Default buffer, may be configurable in a future version of the driver
+        self._buffer = "defbuffer1"
+
+        self.reset()
+        self.get_source_mode()
+        self.get_measure_mode()
+        self.get_source_range()
+        self.get_measurement_range()
+
+    def _get_str_active_mode(self, mode_tuple: Tuple[List[str], int]) -> str:
+        str_active_mode = mode_tuple[0][mode_tuple[1]]
+        return str_active_mode
+
+    def _str_range_to_float(self, str_range: str) -> float:
+        units_dict = {'n': 1e-9,
+                      '\u03bc': 1e-6,
+                      'm': 1e-3,
+                      '' : 1}
+        sep = str_range.split(' ')
+        core_value = float(sep[0])
+        multiplier = units_dict[sep[1].strip('A').strip('V')]
+        return core_value * multiplier        
+
+    def reset(self):
         self.write('*CLS')
+        self.write('*LANG SCPI') # Force SCPI 2450 commands mode
+        self.write(':TRACe:CLEar') # Clear all buffers
 
-        self.allowed_overvoltage_protection_limit = [
-            2, 5, 10, 20, 40, 60, 80, 100, 120, 140, 180]
-        self._tuple_measurement_sense = (["2-wire", "4-wire"], 0)
-        self._tuple_measurement_func = (["voltage", "current", "resistance"], 0)
-        self._tuple_source_func = (["voltage", "current"], 0)
+    def get_source_mode(self) -> Tuple[List[str], int]:
+        ret = self.query(":SOURce:FUNCtion?")
+        self._source_modes = (self._source_modes[0],
+                              self._source_modes[0].index(ret))
+        self.get_source_range()
+        return self._source_modes
 
-    def _set_closest(self, allowed_list, value):
-        a = allowed_list
-        index = min(range(len(a)), key=lambda i: abs(a[i]-value))
-        return a[index]
+    def set_source_mode(self, value: Tuple[List[str], int]):
+        if value[0] != self._source_modes[0]:
+            raise ValueError(
+                f"Source mode '{value[0][value[1]]}' not supported."
+            )
 
-    def get_output_state(self) -> bool:
-        return 'ON' in self.query("print(smu.source.output)")
+        self.write(f":SOURce:FUNCtion {value[0][value[1]]}")
+        self.get_source_mode()
 
-    def set_output_state(self, state: bool):
-        state = bool(int(float(state)))
-        if state:
-            self.write("smu.source.output = smu.ON")
+    def get_read_back_state(self) -> bool:
+        source_mode = self._get_str_active_mode(self._source_modes)
+        return bool(int(
+            self.query(f":SOURce:{source_mode}:READ:BACK?")
+        ))
+
+    def set_read_back_state(self, read_back_on: bool):
+        new_state = 'ON' if read_back_on else 'OFF'
+        source_mode = self._get_str_active_mode(self._source_modes)
+        self.write(f":SOURce:{source_mode}:READ:BACK {new_state}")
+
+    def get_measure_mode(self) -> Tuple[List[str], int]:
+        ret = self.query(":SENSe:FUNCtion?").strip('"').split(":")[0]
+        self._measure_modes = (self._measure_modes[0],
+                               self._measure_modes[0].index(ret))
+        return self._measure_modes
+
+    def set_measure_mode(self, value: Tuple[List[str], int]):
+        if value[0] != self._measure_modes[0]:
+            raise ValueError(
+                f"Measurement mode '{value[0][value[1]]}' not supported."
+            )
+
+        self.write(f':SENSe:FUNCtion "{value[0][value[1]]}"')
+        self.get_measure_mode()
+
+    def get_source_range(self) -> Tuple[List[str], int]:
+        # query the source range from the keithley for the selected mode
+        source_mode = self._get_str_active_mode(self._source_modes)
+        source_range = float(self.query(f":SOURce:{source_mode}:RANGe?"))
+
+        # Change the unit depending on the source mode
+        unit = "V" if source_mode == 'VOLT' else "A"
+        exponent = int(math.log10(source_range))
+        unit_dict = {
+            -1  : (1e3, 'm'),
+            -2  : (1e6, '\u03bc'),
+            -3  : (1e9, 'n'),
+            -4  : (1e12, 'p'),
+            -5  : (1e15, 'f'),
+        }
+        multiplier, prefix = unit_dict.get(exponent // 3, (1, ''))
+        # Finally get a string compatible with the different range tuples
+        str_range = f"{int(source_range * multiplier)} {prefix}{unit}"
+        # exception to avoid values starting by zero
+        if str_range[0] == '0':
+            multiplier, prefix = unit_dict.get((exponent // 3) - 1, (1, ''))
+            str_range = f"{int(source_range * multiplier)} {prefix}{unit}"
+
+        if unit == 'V':
+            self._volt_source_ranges = (self._volt_source_ranges[0],
+                                        self._volt_source_ranges[0]
+                                        .index(str_range))
+            return self._volt_source_ranges
         else:
-            self.write("smu.source.output = smu.OFF")
-        self.query('*OPC?')
+            self._curr_source_ranges = (self._curr_source_ranges[0],
+                                        self._curr_source_ranges[0]
+                                        .index(str_range))
+            return self._curr_source_ranges
 
+    def set_source_range(self, value: Tuple[List[str], int]):
+        value = self._str_range_to_float(value[0][value[1]])
+        source_mode = self._get_str_active_mode(self._source_modes)
+        self.write(f":SOURce:{source_mode}:RANGe {value:.1e}")
+        self.get_source_range()
 
-    def get_wire(self) -> str:
-        return self.query('print(smu.measure.sense)')
+    def get_autorange_state(self) -> bool:
+        source_mode = self._get_str_active_mode(self._source_modes)
+        return bool(int(
+            self.query(f":SENSe:{source_mode}:RANGe:AUTO?")
+        ))
 
-    def set_2wire_mode(self):
-        self.write('smu.measure.sense = smu.SENSE_2WIRE')
-        self.query('*OPC?')
+    def set_autorange_state(self, autorange_on: bool):
+        source_mode = self._get_str_active_mode(self._source_modes)
+        new_state = 'ON' if autorange_on else 'OFF'
+        self.write(f":SENSe:{source_mode}:RANGe:AUTO {new_state}")
 
-    def set_4wire_mode(self):
-        self.write('smu.measure.sense = smu.SENSE_4WIRE')
-        self.query('*OPC?')
+    def get_measurement_range(self) -> Tuple[List[str], int]:
+        # When voltage source mode, measure limit on current and vice-versa
+        measure_mode = self._get_str_active_mode(self._measure_modes)
+        unit = 'V' if measure_mode == 'VOLT' else 'A'
 
-    def get_measurement_sense(self) -> Tuple[List[str], int]:
-        ans = self.get_wire()
-        list_sense = self._tuple_measurement_sense[0]
-        if 'SENSE_2WIRE' in ans: return (list_sense, 0)
-        elif 'SENSE_4WIRE' in ans: return (list_sense, 1)
+        # measure_limit = float(self.query(f":SOURce:{source_mode}:{mode}LIMit?"))
+        measure_range = float(self.query(f":SENSe:{measure_mode}:RANGe:UPPer?"))
+        exponent = int(math.log10(measure_range))
+        unit_dict = {
+            -1  : (1e3, 'm'),
+            -2  : (1e6, '\u03bc'),
+            -3  : (1e9, 'n'),
+            -4  : (1e12, 'p'),
+            -5  : (1e15, 'f'),
+        }
+        multiplier, prefix = unit_dict.get(exponent // 3, (1, ''))
 
-    def set_measurement_sense(self, value: Tuple[List[str], int]):
-        value = tuple(value)
-        element = value[0][value[1]]
-        if element == "2-wire": self.set_2wire_mode()
-        elif element == "4-wire": self.set_4wire_mode()
-        self._tuple_measurement_sense = value
+        str_range = f"{int(measure_range * multiplier)} {prefix}{unit}"
+        # exception to avoid values starting by zero
+        if str_range[0] == '0':
+            multiplier, prefix = unit_dict.get((exponent // 3) - 1, (1, ''))
+            str_range = f"{int(measure_range * multiplier)} {prefix}{unit}"
+        if measure_mode == 'VOLT':
+            self._volt_meas_ranges = (self._volt_meas_ranges[0],
+                                      self._volt_meas_ranges[0]
+                                      .index(str_range))
+            return self._volt_meas_ranges
+        else:
+            self._curr_meas_ranges = (self._curr_meas_ranges[0],
+                                      self._curr_meas_ranges[0]
+                                      .index(str_range))
+            return self._curr_meas_ranges
 
-
-    def get_measurement(self) -> str:
-        return self.query('print(smu.measure.func)')
-
-    def set_voltage_measurement(self):
-        self.write('smu.measure.func = smu.FUNC_DC_VOLTAGE')
-
-    def set_current_measurement(self):
-        self.write('smu.measure.func = smu.FUNC_DC_CURRENT')
-
-    def set_resistance_measurement(self):
-        self.write('smu.measure.func = smu.FUNC_RESISTANCE')
-
-    def get_measurement_func(self) -> Tuple[List[str], int]:
-        ans = self.get_measurement()
-        list_func = self._tuple_measurement_func[0]
-        if 'FUNC_DC_VOLTAGE' in ans: return (list_func, 0)
-        elif 'FUNC_DC_CURRENT' in ans: return (list_func, 1)
-        elif 'FUNC_RESISTANCE' in ans: return (list_func, 2)
-
-    def set_measurement_func(self, value: Tuple[List[str], int]):
-        value = tuple(value)
-        element = value[0][value[1]]
-        if element == 'voltage': self.set_voltage_measurement()
-        elif element == 'current': self.set_current_measurement()
-        elif element == 'resistance': self.set_resistance_measurement()
-        self._tuple_measurement_func = value
-
-
-    def set_overvoltage_protection_limit(self, value: int):
-        value = int(value)
-        value = self._set_closest(
-            self.allowed_overvoltage_protection_limit, value)
-        self.write(f"smu.source.protect.level = smu.PROTECT_{value}V")
-        self.query('*OPC?')
-
-    def get_overvoltage_protection_limit(self) -> int:
-        ans = self.query(
-            "print(smu.source.protect.level)").lstrip('smu.PROTECT_').rstrip('V')
-        return int(ans)
-
-
-    def get_source(self):
-        return self.query('print(smu.source.func)')
-
-    def set_voltage_source(self):
-        self.write('smu.source.func = smu.FUNC_DC_VOLTAGE')
-
-    def set_current_source(self):
-        self.write('smu.source.func = smu.FUNC_DC_CURRENT')
-
-    def get_source_func(self) -> Tuple[List[str], int]:
-        ans = self.get_source()
-        list_func = self._tuple_source_func[0]
-        if 'FUNC_DC_VOLTAGE' in ans: return (list_func, 0)
-        elif 'FUNC_DC_CURRENT' in ans: return (list_func, 1)
-
-    def set_source_func(self, value: Tuple[List[str], int]):
-        value = tuple(value)
-        element = value[0][value[1]]
-        if element == 'voltage': self.set_voltage_source()
-        elif element == 'current': self.set_current_source()
-        self._tuple_source_func = value
-
+    def set_measurement_range(self, value: Tuple[List[str], int]):
+        value = self._str_range_to_float(value[0][value[1]])
+        measure_mode = self._get_str_active_mode(self._measure_modes)
+        self.write(f':SENSe:{measure_mode}:RANGe:UPPer {value}')
+        self.get_measurement_range()
 
     def get_source_limit(self) -> float:
-        source = self.get_source()
-        if source == 'smu.FUNC_DC_CURRENT':
-            ans = float(self.query('print(smu.source.vlimit.level)'))
-        elif source == 'smu.FUNC_DC_VOLTAGE':
-            ans = float(self.query('print(smu.source.ilimit.level)'))
-        else:
-            ans = -1  # error
-        return ans
+        source_mode = self._get_str_active_mode(self._source_modes)
+        limit_type = 'V' if source_mode == 'CURR' else 'I'
+        ret = self.query(f":SOURce:{source_mode}:{limit_type}LIMit:LEVel?")
+        return float(ret)
 
     def set_source_limit(self, value: float):
-        value = float(value)
-        source = self.get_source()
-        if source == 'smu.FUNC_DC_CURRENT':
-            self.write(f"smu.source.vlimit.level = {value}")
-        elif source == 'smu.FUNC_DC_VOLTAGE':
-            self.write(f"smu.source.ilimit.level = {value}")
+        source_mode = self._get_str_active_mode(self._source_modes)
+        limit_type = 'V' if source_mode == 'CURR' else 'I'
+        self.write(f":SOURce:{source_mode}:{limit_type}LIMit:LEVel {value:.2f}")  
 
-    def get_source_level(self) -> float:
-        if self.get_output_state():
-            ans = float(self.query('print(smu.source.level)'))
-        else:
-            ans = 0.
-        return ans
-
-    def set_source_level(self, value: float):
-        value = float(value)
-        self.write(f"smu.source.level = {value}")
-
-    def get_measurement_level(self) -> float:
-        if self.get_output_state():
-            ans = float(self.query('print(smu.measure.read())'))
-        else:
-            ans = 0.
-        return ans
-
-    def get_id(self) -> str:
-        return self.query('*IDN?')
-
-    def get_driver_model(self):
+    def get_driver_model(self) -> List[dict]:
         model = []
 
-        model.append({'element': 'variable', 'name': 'output_state',
-                      'type': bool,
-                      'read': self.get_output_state, 'write': self.set_output_state,
-                      'help': 'Output state'})
+        model.append({'element'     : 'variable',
+                      'name'        : 'source_mode',
+                      'type'        : tuple,
+                      'read_init'   : True,
+                      'read'        : self.get_source_mode,
+                      'write'       : self.set_source_mode,
+                      'help'        : 'Source mode : Voltage or Current.'})
 
-        model.append({'element': 'variable', 'name': 'wire_mode',
-                      'type': tuple,
-                      'read': self.get_measurement_sense, 'write': self.set_measurement_sense,
-                      'help': 'Set wire mode between 2-wire (local) and 4-wire (remote)'})
-        # model.append({'element':'variable','name':'wire_state','read':self.get_wire,'type':str,'help':'Wire mode'})
-        # model.append({'element':'action','name':'2_wire_mode','do':self.set_2wire_mode,'type':bool,'help':'Two wire mode'})
-        # model.append({'element':'action','name':'4_wire_mode','do':self.set_4wire_mode,'type':bool,'help':'Four wire mode'})
+        model.append({'element'     : 'variable',
+                      'name'        : 'measurement_mode',
+                      'type'        : tuple,
+                      'read_init'   : True,
+                      'read'        : self.get_measure_mode,
+                      'write'       : self.set_measure_mode,
+                      'help'        : ('Measurement mode : Voltage, Current'
+                                       ' or Resistance.')})
 
-        model.append({'element': 'variable', 'name': 'measurement_type',
-                      'type': tuple,
-                      'read': self.get_measurement_func, 'write': self.set_measurement_func,
-                      'help': 'Set measurement type between voltage, current and resistance'})
-        # model.append({'element':'variable','name':'measurement','read':self.get_measurement,'type':str,'help':'Measurement type'})
-        # model.append({'element':'action','name':'resistance_measurement','do':self.set_resistance_measurement,'type':bool,'help':'Resistance measurement'})
-        # model.append({'element':'action','name':'voltage_measurement','do':self.set_voltage_measurement,'type':bool,'help':'Voltage measurement'})
-        # model.append({'element':'action','name':'current_measurement','do':self.set_current_measurement,'type':bool,'help':'Current measurement'})
+        model.append({'element'     : 'variable',
+                      'name'        : 'enable_read_back',
+                      'type'        : bool,
+                      'read_init'   : True,
+                      'read'        : self.get_read_back_state,
+                      'write'       : self.set_read_back_state,
+                      'help'        : 'Perform readback of the source value.'})
 
-        model.append({'element': 'variable', 'name': 'source_type',
-                      'type': tuple,
-                      'read': self.get_source_func, 'write': self.set_source_func,
-                      'help': 'Set source type between voltage and current'})
-        # model.append({'element':'variable','name':'source','read':self.get_source,'type':str,'help':'Source type'})
-        # model.append({'element':'action','name':'current_source','do':self.set_current_source,'help':'Source type: current'})
-        # model.append({'element':'action','name':'voltage_source','do':self.set_voltage_source,'help':'Source type: voltage'})
+        model.append({'element'     : 'variable',
+                      'name'        : 'measurement_autorange',
+                      'type'        : bool,
+                      'read_init'   : True,
+                      'read'        : self.get_autorange_state,
+                      'write'       : self.set_autorange_state,
+                      'help'        : 'Allow measurement autorange.'})
 
-        model.append({'element': 'variable', 'name': 'source_limit',
-                      'type': float, 'unit': 'Volts or Amps',
-                      'read': self.get_source_limit, 'write': self.set_source_limit,
-                      'help': 'Source limit depend on the type of source in use (current or voltage).'})
+        model.append({'element'     : 'variable',
+                      'name'        : 'source_range',
+                      'type'        : tuple,
+                      'read_init'   : True,
+                      'read'        : self.get_source_range,
+                      'write'       : self.set_source_range,
+                      'help'        : 'Source range.'})
 
-        model.append({'element': 'variable', 'name': 'source_level',
-                      'type': float, 'unit': 'Volts or Amps',
-                      'read': self.get_source_level, 'write': self.set_source_level,
-                      'help':'Source value to be used; unit depend on the type of source in use (current or voltage).'})
+        model.append({'element'     : 'variable',
+                      'name'        : 'measurement_range',
+                      'type'        : tuple,
+                      'read_init'   : True,
+                      'read'        : self.get_measurement_range,
+                      'write'       : self.set_measurement_range,
+                      'help'        : 'Measurement range.'})
 
-        model.append({'element': 'variable', 'name': 'measurement_level',
-                      'type': float,'unit':' Volts or Amps or Ohms',
-                      'read': self.get_measurement_level,
-                      'help':'Measured value; unit depend on the type of measurement ("current", "voltage" or "resistance").'})
-
-        model.append({'element': 'variable', 'name': 'overvoltage_protection_limit',
-                      'type': int, 'unit': 'V',
-                      'read': self.get_overvoltage_protection_limit, 'write': self.set_overvoltage_protection_limit,
-                      'help': 'Overvoltage protection limit. Values accepted: 2, 5, 10, 20, 40, 60, 80, 100, 120, 140, 180'})
-
+        model.append({'element'     : 'variable',
+                      'name'        : 'source_limit',
+                      'type'        : float,
+                      'read_init'   : True,
+                      'unit'        : 'V or A',
+                      'read'        : self.get_source_limit,
+                      'write'       : self.set_source_limit,
+                      'help'        : ('Source upper limit, unit depends on'
+                                       ' measurement mode')})
         return model
+# =============================================================================
+# CONNECTION CLASS
+# =============================================================================
 
-
-#################################################################################
-############################## Connections classes ##############################
 class Driver_VISA(Driver):
-    def __init__(self, address='USB0::1510::9296::04062471::0::INSTR', **kwargs):
+
+    def __init__(self, address: str = 'USB0::0x05E6::0x2450::04081087::INSTR',
+                 **kwargs):
+
         import pyvisa as visa
+        self.TIMEOUT = 5000  # Default timeout of 5s
 
-        self.TIMEOUT = 5000  # ms
-        # Instantiation
+        # Instanciation
         rm = visa.ResourceManager()
-        self.controller = rm.get_instrument(address)
+        self.controller = rm.open_resource(address)
         self.controller.timeout = self.TIMEOUT
-
+        
         Driver.__init__(self)
 
     def close(self):
-        try: self.controller.close()
-        except: pass
+        # Avoid returning error when closing, can still go back to local
+        try:
+            self.controller.close()
+        except:
+            pass
 
-    def query(self, command):
+    # How to query sth with this specific connection
+    def query(self, command: str) -> str:
         result = self.controller.query(command)
-        result = result.strip('\n')
+        result = str(result.strip('\n'))
         return result
 
-    def write(self, command):
+    # How to write to the instrument with this connection
+    def write(self, command: str):  # SCPI, write strings only
         self.controller.write(command)
-
-    def read(self):
-        result = self.controller.read()
-        return result.strip('\n')
-############################## Connections classes ##############################
-#################################################################################
