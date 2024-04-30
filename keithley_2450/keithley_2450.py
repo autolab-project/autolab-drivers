@@ -14,7 +14,8 @@ class Driver:
         # Tuple for the available source modes, 1st item is the modes list,
         # second is the index of the selected one 
         self._source_modes = (['VOLT', 'CURR'], 0)
-        self._measure_modes = (['VOLT', 'CURR', 'RES'], 0)
+        self._measure_modes = (['VOLT', 'CURR'], 0)  # May need to add RES for
+        # resistance measurements later
 
         self._volt_source_ranges = (['20 mV', '200 mV', '2 V', '20 V', '200 V'],
                                     0)
@@ -36,6 +37,7 @@ class Driver:
         self.get_measure_mode()
         self.get_source_range()
         self.get_measurement_range()
+        self.get_output_state()
 
     def _get_str_active_mode(self, mode_tuple: Tuple[List[str], int]) -> str:
         str_active_mode = mode_tuple[0][mode_tuple[1]]
@@ -49,7 +51,15 @@ class Driver:
         sep = str_range.split(' ')
         core_value = float(sep[0])
         multiplier = units_dict[sep[1].strip('A').strip('V')]
-        return core_value * multiplier        
+        return core_value * multiplier    
+
+    @property
+    def source_mode(self) -> str:
+        return self._get_str_active_mode(self._source_modes)
+    
+    @property
+    def measure_mode(self) -> str:
+        return self._get_str_active_mode(self._measure_modes)
 
     def reset(self):
         self.write('*CLS')
@@ -73,15 +83,13 @@ class Driver:
         self.get_source_mode()
 
     def get_read_back_state(self) -> bool:
-        source_mode = self._get_str_active_mode(self._source_modes)
         return bool(int(
-            self.query(f":SOURce:{source_mode}:READ:BACK?")
+            self.query(f":SOURce:{self.source_mode}:READ:BACK?")
         ))
 
     def set_read_back_state(self, read_back_on: bool):
         new_state = 'ON' if read_back_on else 'OFF'
-        source_mode = self._get_str_active_mode(self._source_modes)
-        self.write(f":SOURce:{source_mode}:READ:BACK {new_state}")
+        self.write(f":SOURce:{self.source_mode}:READ:BACK {new_state}")
 
     def get_measure_mode(self) -> Tuple[List[str], int]:
         ret = self.query(":SENSe:FUNCtion?").strip('"').split(":")[0]
@@ -97,14 +105,57 @@ class Driver:
 
         self.write(f':SENSe:FUNCtion "{value[0][value[1]]}"')
         self.get_measure_mode()
+        
+    def get_current(self) -> float:
+        function = None
+        if self.source_mode == 'CURR':
+            function = 'SOURce'
+        elif self.measure_mode == 'CURR':
+            function = 'READing'
+            
+        if function is None:
+            raise RuntimeError("Current cannot be measured if not sourced or read.")
+
+        return float(
+            self.query(f':READ? "{self._buffer}", {function}')
+        )
+
+    def set_current(self, value: float):
+        if not self.source_mode == 'CURR':
+            raise RuntimeError("Current cannot be set if not sourced")
+
+        value = float(value)
+        self.write(f":SOURce:CURRent:LEVel {value}")
+        self.query('*OPC?')
+
+    def get_voltage(self) -> float:
+        function = None
+        if self.source_mode == 'VOLT':
+            function = 'SOURce'
+        elif self.measure_mode == 'VOLT':
+            function = 'READing'
+            
+        if function is None:
+            raise RuntimeError("Voltage cannot be measured if not sourced or read.")
+
+        return float(
+            self.query(f':READ? "{self._buffer}", {function}')
+        )
+
+    def set_voltage(self, value: float):
+        if not self.source_mode == 'VOLT':
+            raise RuntimeError("Voltage cannot be set if not sourced")
+            
+        value = float(value)
+        self.write(f":SOURce:VOLTage:LEVel {value}")
+        self.query('*OPC?')
 
     def get_source_range(self) -> Tuple[List[str], int]:
         # query the source range from the keithley for the selected mode
-        source_mode = self._get_str_active_mode(self._source_modes)
-        source_range = float(self.query(f":SOURce:{source_mode}:RANGe?"))
+        source_range = float(self.query(f":SOURce:{self.source_mode}:RANGe?"))
 
         # Change the unit depending on the source mode
-        unit = "V" if source_mode == 'VOLT' else "A"
+        unit = "V" if self.source_mode == 'VOLT' else "A"
         exponent = int(math.log10(source_range))
         unit_dict = {
             -1  : (1e3, 'm'),
@@ -134,28 +185,24 @@ class Driver:
 
     def set_source_range(self, value: Tuple[List[str], int]):
         value = self._str_range_to_float(value[0][value[1]])
-        source_mode = self._get_str_active_mode(self._source_modes)
-        self.write(f":SOURce:{source_mode}:RANGe {value:.1e}")
+        self.write(f":SOURce:{self.source_mode}:RANGe {value:.1e}")
         self.get_source_range()
 
     def get_autorange_state(self) -> bool:
-        source_mode = self._get_str_active_mode(self._source_modes)
         return bool(int(
-            self.query(f":SENSe:{source_mode}:RANGe:AUTO?")
+            self.query(f":SENSe:{self.source_mode}:RANGe:AUTO?")
         ))
 
     def set_autorange_state(self, autorange_on: bool):
-        source_mode = self._get_str_active_mode(self._source_modes)
         new_state = 'ON' if autorange_on else 'OFF'
-        self.write(f":SENSe:{source_mode}:RANGe:AUTO {new_state}")
+        self.write(f":SENSe:{self.source_mode}:RANGe:AUTO {new_state}")
 
     def get_measurement_range(self) -> Tuple[List[str], int]:
         # When voltage source mode, measure limit on current and vice-versa
-        measure_mode = self._get_str_active_mode(self._measure_modes)
-        unit = 'V' if measure_mode == 'VOLT' else 'A'
+        unit = 'V' if self.measure_mode == 'VOLT' else 'A'
 
         # measure_limit = float(self.query(f":SOURce:{source_mode}:{mode}LIMit?"))
-        measure_range = float(self.query(f":SENSe:{measure_mode}:RANGe:UPPer?"))
+        measure_range = float(self.query(f":SENSe:{self.measure_mode}:RANGe:UPPer?"))
         exponent = int(math.log10(measure_range))
         unit_dict = {
             -1  : (1e3, 'm'),
@@ -171,7 +218,7 @@ class Driver:
         if str_range[0] == '0':
             multiplier, prefix = unit_dict.get((exponent // 3) - 1, (1, ''))
             str_range = f"{int(measure_range * multiplier)} {prefix}{unit}"
-        if measure_mode == 'VOLT':
+        if self.measure_mode == 'VOLT':
             self._volt_meas_ranges = (self._volt_meas_ranges[0],
                                       self._volt_meas_ranges[0]
                                       .index(str_range))
@@ -184,20 +231,24 @@ class Driver:
 
     def set_measurement_range(self, value: Tuple[List[str], int]):
         value = self._str_range_to_float(value[0][value[1]])
-        measure_mode = self._get_str_active_mode(self._measure_modes)
-        self.write(f':SENSe:{measure_mode}:RANGe:UPPer {value}')
+        self.write(f':SENSe:{self.measure_mode}:RANGe:UPPer {value}')
         self.get_measurement_range()
 
     def get_source_limit(self) -> float:
-        source_mode = self._get_str_active_mode(self._source_modes)
-        limit_type = 'V' if source_mode == 'CURR' else 'I'
-        ret = self.query(f":SOURce:{source_mode}:{limit_type}LIMit:LEVel?")
+        limit_type = 'V' if self.source_mode == 'CURR' else 'I'
+        ret = self.query(f":SOURce:{self.source_mode}:{limit_type}LIMit:LEVel?")
         return float(ret)
 
     def set_source_limit(self, value: float):
-        source_mode = self._get_str_active_mode(self._source_modes)
-        limit_type = 'V' if source_mode == 'CURR' else 'I'
-        self.write(f":SOURce:{source_mode}:{limit_type}LIMit:LEVel {value:.2f}")  
+        limit_type = 'V' if self.source_mode == 'CURR' else 'I'
+        self.write(f":SOURce:{self.source_mode}:{limit_type}LIMit:LEVel {value:.2f}")
+        
+    def get_output_state(self) -> bool:
+        return bool(int(self.query("OUTPUT?")))
+
+    def set_output_state(self, turn_on: bool):
+        new_state = 'ON' if bool(turn_on) else 'OFF'
+        self.write(f"OUTPut {new_state}")
 
     def get_driver_model(self) -> List[dict]:
         model = []
@@ -234,6 +285,26 @@ class Driver:
                       'read'        : self.get_autorange_state,
                       'write'       : self.set_autorange_state,
                       'help'        : 'Allow measurement autorange.'})
+        
+        model.append({
+            'element'   : 'variable',
+            'name'      : 'Voltage',
+            'unit'      : 'V',
+            'read'      : self.get_voltage,
+            'write'     : self.set_voltage,
+            'type'      : float,
+            'help'      : 'Voltage at the output (sourced or measured)',
+        })
+        
+        model.append({
+            'element'   : 'variable',
+            'name'      : 'Current',
+            'unit'      : 'A',
+            'read'      : self.get_current,
+            'write'     : self.set_current,
+            'type'      : float,
+            'help'      : 'Current at the output (sourced or measured)',
+        })
 
         model.append({'element'     : 'variable',
                       'name'        : 'source_range',
@@ -260,6 +331,14 @@ class Driver:
                       'write'       : self.set_source_limit,
                       'help'        : ('Source upper limit, unit depends on'
                                        ' measurement mode')})
+        
+        model.append({'element'   : 'variable',
+                      'name'      : 'Output',
+                      'read'      : self.get_output_state,
+                      'write'     : self.set_output_state,
+                      'type'      : bool,
+                      'help'      : 'Turn on/off the device output'})
+        
         return model
 # =============================================================================
 # CONNECTION CLASS
