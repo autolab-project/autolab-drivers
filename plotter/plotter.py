@@ -182,6 +182,7 @@ class Driver :
 
     def get_cursor_movable(self):
         if self.gui: return bool(self.cursor_list[0].movable)
+        return False
 
     def set_cursor_movable(self, value):
         if self.gui:

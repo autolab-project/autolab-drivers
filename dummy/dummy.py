@@ -169,6 +169,9 @@ class Driver():
         time.sleep(self.sleep)
         if self._verbose: print('Save', value)
 
+    def user_input(self, value):
+        if self._verbose: print('User input:', value)
+
     def get_constant(self) -> float:
         return float(self.constant)
 
@@ -271,12 +274,18 @@ class Driver():
         model.append({'element': 'action', 'name': 'something',
                       'do': self.do_sth,
                       'help': 'This do something...'})
-        model.append({'element': 'action', 'name': 'open_file', "param_type": str, "param_unit": "open-file",
+        model.append({'element': 'action', 'name': 'open_file',
+                      "param_type": str, "param_unit": "open-file",
                       'do': self.open_filename,
                       'help': 'This minmic open file'})
-        model.append({'element': 'action', 'name': 'save_file', "param_type": str, "param_unit": "save-file",
+        model.append({'element': 'action', 'name': 'save_file',
+                      "param_type": str, "param_unit": "save-file",
                       'do': self.save_filename,
                       'help': 'This minmic save file'})
+        model.append({'element': 'action', 'name': 'user_input',
+                      "param_type": str, "param_unit": "user-input",
+                      'do': self.user_input,
+                      'help': 'Asks the user for input (can be used to pause scan until user presses enter)'})
         return model
 
 
