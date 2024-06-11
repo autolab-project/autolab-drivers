@@ -23,6 +23,9 @@ ELL = {'06' : {'long':'Dual-Position Slider','short':'TwoPosSlider'},
 #### all possible addresses to scan
 addresslist = ['0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F']
 
+category = 'Motion controller'
+
+
 class Driver():
     """ 
     This class mostly corresponds to the ELLDevices class

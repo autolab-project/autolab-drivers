@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-category = 'Spectrum Analyzer'
+category = 'Electrical Spectrum Analyzer (ESA)'
 
 class Driver_parser():
     def __init__(self, Instance, name, **kwargs):

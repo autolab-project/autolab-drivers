@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-category = 'Signal Generator'
+category = 'Function generator'
 
 class Driver_parser():
     def __init__(self, Instance, name, **kwargs):

@@ -10,6 +10,8 @@ import time
 import numpy as np
 import pandas as pd
 
+category = 'Electrical Spectrum Analyzer (ESA)'
+
 
 class Driver():
     """ This Driver contains only few functions available for this device """

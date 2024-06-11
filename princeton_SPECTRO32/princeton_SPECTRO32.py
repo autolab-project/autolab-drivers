@@ -10,6 +10,8 @@ import os
 import time
 from numpy import savetxt,ndarray
 
+category = 'Optical Spectrum Analyzer (OSA)'
+
 
 class Driver():
     

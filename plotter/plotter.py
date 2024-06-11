@@ -182,11 +182,13 @@ class Driver :
 
     def get_cursor_movable(self):
         if self.gui: return bool(self.cursor_list[0].movable)
+        return False
 
     def set_cursor_movable(self, value):
-        value = bool(int(float(value)))
-        for cursor in self.cursor_list:
-            cursor.setMovable(value)
+        if self.gui:
+            value = bool(int(float(value)))
+            for cursor in self.cursor_list:
+                cursor.setMovable(value)
 
     def get_displayCursor(self):
         return bool(self.isDisplayCursor)
@@ -400,8 +402,9 @@ class Driver :
         return config
 
     def close(self):
-        for cursor in self.cursor_list:
-            self.gui.removeWidget(cursor)
+        if self.gui:
+            for cursor in self.cursor_list:
+                self.gui.removeWidget(cursor)
 
 class Driver_DEFAULT(Driver):
     def __init__(self, **kwargs):
