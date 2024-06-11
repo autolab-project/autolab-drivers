@@ -10,7 +10,7 @@ Tested on Anapico APULN40, may need to change hardcoded values for other models
 
 import numpy as np
 
-category = 'Synthesized signal generators'
+category = 'Function generator'
 # =============================================================================
 # INSTRUMENT CLASS
 # =============================================================================

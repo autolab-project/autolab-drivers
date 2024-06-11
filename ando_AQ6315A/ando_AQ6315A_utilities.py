@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-category = 'Spectrum analyser'
+category = 'Optical Spectrum Analyzer (OSA)'
     
 class Driver_parser():
     def __init__(self, Instance, name, **kwargs):

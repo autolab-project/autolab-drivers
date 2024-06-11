@@ -11,6 +11,9 @@ import time
 from numpy import savetxt,linspace
 import pandas
 
+category = 'Optical Spectrum Analyzer (OSA)'
+
+
 class Driver():
     
     def __init__(self):

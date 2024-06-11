@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-category = 'Electrical source'
+category = 'Source and Measurement Unit (SMU)'
     
     
 class Driver_parser():

@@ -6,10 +6,10 @@ Supported instruments (identified): Anritsu MG369xC
 Note: use the SCPI manual and not the GPIB
 """
 
-ADDRESS = 'GPIB0::5::INSTR'
+category = 'Function generator'
 
 
-class Driver() :
+class Driver():
 
     def __init__(self):
         pass
@@ -59,7 +59,7 @@ class Driver() :
 #################################################################################
 ############################## Connections classes ##############################
 class Driver_VISA(Driver):
-    def __init__(self,address=ADDRESS, **kwargs):
+    def __init__(self, address='GPIB0::5::INSTR', **kwargs):
         import pyvisa as visa
 
         rm = visa.ResourceManager()

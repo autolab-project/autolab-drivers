@@ -10,6 +10,8 @@ import os
 from numpy import savetxt,linspace
 import pandas
 
+category = 'Electrical Spectrum Analyser (ESA)'
+
 
 class Driver():
     

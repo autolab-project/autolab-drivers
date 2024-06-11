@@ -1,4 +1,4 @@
-category = 'Lockin Amplifier'                              #
+category = 'Lock-in amplifier'                              #
 
 class Driver_parser():                                     #
     def __init__(self, Instance, name, **kwargs):          #

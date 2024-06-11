@@ -6,6 +6,7 @@ Supported instruments (identified):
 - 
 """
 
+category = 'Source and Measurement Unit (SMU)'
 
 
 class Driver():

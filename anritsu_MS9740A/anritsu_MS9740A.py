@@ -7,6 +7,8 @@ Supported instruments (identified):
 """
 import pandas as pd
 
+category = 'Optical Spectrum Analyzer (OSA)'
+
 
 class Driver() :
 

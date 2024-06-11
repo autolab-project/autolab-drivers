@@ -11,6 +11,9 @@ import traceback
 import pythoncom
 from typing import Tuple, List
 
+category = 'Power meter'
+
+
 class Driver():
     
     def __init__(self):
