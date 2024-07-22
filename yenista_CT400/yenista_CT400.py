@@ -53,7 +53,7 @@ def laser_code(name, permute=False):
     return code
 
 
-def read_xml(file):
+def read_xml(file: str) -> dict:
     try:
         tree = ET.parse(file)
 
@@ -118,8 +118,8 @@ def read_xml(file):
             for i in (2, 3, 4):  # can add Ext and Orl
                 detector_array.append(True if Detector_Array[f"Enable{i}"] == "True" else False)
 
-    except Exception as er:
-        print(er, ". Taking default driver value", file=sys.stderr)
+    except Exception as e:
+        print(f"{e}. Taking default driver value", file=sys.stderr)
         power_scan = 1.
         low_wavelength_scan = 1510.
         high_wavelength_scan = 1610.
@@ -300,7 +300,8 @@ def default_xml():  # OPTIMIZE: update to add ct440 but should be useless anyway
 
     return CT400
 
-def write_xml(config, configpath):
+
+def write_xml(config: dict, configpath: str):
     try:
         import xml.etree.ElementTree as ET
         from xml.dom import minidom
@@ -401,30 +402,34 @@ def write_xml(config, configpath):
 # %%
 
 class Laser:
-    """ Contain all the ct400/ct440 commands related to the laser"""
+    """ Contain all the CT400/CT440 commands related to the laser """
 
-    def __init__(self, dev, num=LI_1):  # dev is the detector instance
-        self.dev = dev  # TODO: change dev to detector and dev.dev to driver
-        self.model = self.dev.dev.model
-        self.config = self.dev.dev.config
-        self.NUM = num
-        self._init_variables()
+    model: str
+    config: dict
+    controller: None
+    uiHandle: int
 
-        try:
-            self.connect()
-        except Exception as er:
-            print(f"laser{self.NUM}:", er, file=sys.stderr)
-
-    def connect(self):
-
+    def __init__(self, dev, num: int = LI_1):  # dev is the Driver instance
+        self.dev = dev
+        self.model = self.dev.model
+        self.config = self.dev.config
         self.controller = self.dev.controller
         self.uiHandle = self.dev.uiHandle
+        self.NUM = num
 
-        if self.controller is not None:
+        self._init_variables()
+
+        if self.controller:
             try:
-                self._init_laser()
-            except Exception:
-                raise FileNotFoundError("Can't found the laser")
+                self.connect()
+            except Exception as e:
+                print(f"Error with laser{self.NUM}: {e}", file=sys.stderr)
+
+    def connect(self):
+        try:
+            self._init_laser()
+        except Exception:
+            raise ConnectionError("Can't found the laser")
 
     def _init_variables(self):
         self._GPIBID = self.config["GPIBID"][self.NUM-1]
@@ -446,7 +451,6 @@ class Laser:
                                       ct.c_double(self._low_wavelength),
                                       ct.c_double(self._high_wavelength),
                                       self._speed)
-
         else:
             self.controller.set_laser(self.uiHandle, self.NUM, self._connected,
                                       self._GPIBAdress,
@@ -454,6 +458,7 @@ class Laser:
                                       ct.c_double(self._low_wavelength),
                                       ct.c_double(self._high_wavelength),
                                       self._speed)
+
     def get_model(self):
         return self._laser_model
 
@@ -475,14 +480,12 @@ class Laser:
         self._GPIBAdress = int(value)
         self._init_laser()
 
-
     def get_low_wavelength(self):
         return self._low_wavelength
 
     def set_low_wavelength(self, value):
         self._low_wavelength = float(value)
         self._init_laser()
-
 
     def get_high_wavelength(self):
         return self._high_wavelength
@@ -491,14 +494,12 @@ class Laser:
         self._high_wavelength = float(value)
         self._init_laser()
 
-
     def get_speed(self):
         return self._speed
 
     def set_speed(self, value):
         self._speed = int(value)
         self._init_laser()
-
 
     def get_connected(self):
         return self._connected
@@ -507,14 +508,12 @@ class Laser:
         self._connected = bool(int(float(value)))
         self._init_laser()
 
-
     def get_output_state(self):
         return self._state
 
     def set_output_state(self, state):
         self._state = ENABLE if bool(int(float(state))) else DISABLE
         self._CmdLaser()
-
 
     def get_wavelength(self):
         return self._wavelength
@@ -523,7 +522,6 @@ class Laser:
         self._wavelength = float(value)
         self._CmdLaser()
 
-
     def get_power(self):
         return self._power
 
@@ -531,10 +529,8 @@ class Laser:
         self._power = float(value)
         self._CmdLaser()
 
-
     def _CmdLaser(self):
         self.controller.cmd_laser(self.uiHandle, self.NUM, self._state, ct.c_double(self._wavelength), ct.c_double(self._power))
-
 
     def get_driver_model(self):
         config = []
@@ -572,7 +568,7 @@ class Laser:
                        'read_init':True,'read':self.get_GPIBAdress,'write':self.set_GPIBAdress,
                        "help": "Set the laser gbib address."})
 
-        config.append({'element':'variable','name':'model','type':int,
+        config.append({'element':'variable','name':'model','type':int,  # OPTIMIZE: could use tuple instead
                        'read_init':True,'read':self.get_model,'write':self.set_model,
                        "help": "Set the laser model \n(LS_TunicsPlus, LS_TunicsPurity, LS_TunicsReference, LS_TunicsT100s, LS_TunicsT100r, LS_JdsuSws, LS_Agilent, NB_SOURCE) \n(0, 1, 2, 3, 4, 5, 6, 7)"})
 
@@ -583,34 +579,39 @@ class Laser:
 
 
 class Scan:
-    """ Contain all the ct400/ct440 commands related to the laser"""
+    """ Contain all the CT400/CT440 commands related to the scan (detectors+lasers) """
 
-    def __init__(self, dev):  # dev is the detector instance, dev.dev is Driver
+    model: str
+    config: dict
+    controller: None
+    uiHandle: int
+    _NBR_INPUT: int
+
+    def __init__(self, dev):  # dev is the Driver instance
         self.dev = dev
-        self.model = self.dev.dev.model
-        self.config = self.dev.dev.config
-        self._init_variables()
-
+        self.model = self.dev.model
+        self.config = self.dev.config
+        self.controller = self.dev.controller
+        self.uiHandle = self.dev.uiHandle
+        self._NBR_INPUT = self.dev._NBR_INPUT
         self._interpolate = True
         self.scan_running = False
 
         self.tcError = ct.create_string_buffer(1024)
 
-        try:
-            self.connect()
-        except Exception as er:
-            print("Scan: ", er, file=sys.stderr)
+        self._init_variables()
+
+        if self.controller:
+            try:
+                self.connect()
+            except Exception as e:
+                print(f"Error with scan: {e}", file=sys.stderr)
 
     def connect(self):
-        if self.dev.controller is not None:
-            self.controller = self.dev.controller
-            self.uiHandle = self.dev.uiHandle
-
-            try:
-                self._init_scan()
-            except Exception:
-                raise FileNotFoundError("Can't found any laser")
-
+        try:
+            self._init_scan()
+        except Exception:
+            raise ConnectionError("Can't found any laser")
 
     def _init_variables(self):
         self._power_scan = self.config['power_scan']
@@ -625,14 +626,12 @@ class Scan:
         self.set_scan(self._power_scan, self._low_wavelength_scan, self._high_wavelength_scan)
         self.set_res(self._res)
 
-
     def get_low_wavelength_scan(self):
         return self._low_wavelength_scan
 
     def set_low_wavelength_scan(self, value):
         self._low_wavelength_scan = float(value)
         self.set_scan(self._power_scan, self._low_wavelength_scan, self._high_wavelength_scan)
-
 
     def get_high_wavelength_scan(self):
         return self._high_wavelength_scan
@@ -678,14 +677,12 @@ class Scan:
     def set_interpolate(self, value):
         self._interpolate = bool(int(float(value)))
 
-
     def get_power_scan(self):
         return self._power_scan
 
     def set_power_scan(self, value):
         self._power_scan = float(value)
         self.set_scan(self._power_scan, self._low_wavelength_scan, self._high_wavelength_scan)
-
 
     def get_detector2_state(self):
         return self._detector2_state
@@ -705,10 +702,9 @@ class Scan:
     def set_detector4_state(self, value):
         self._detector4_state = bool(int(float(value)))
 
-
     def do_sweep(self):
-        for i in range(1,4+1):
-            laser = getattr(self.dev.dev, f"laser{i}", None)
+        for i in range(1, 4+1):
+            laser = getattr(self.dev, f"laser{i}", None)
             if laser is not None and laser._connected:
                 laser._state = ENABLE
 
@@ -735,10 +731,8 @@ class Scan:
 
         self._get_data_sweep()
 
-
     def _get_data_sweep(self):
         if self._interpolate:
-
             iPointsNumberResampled = self.controller.get_nb_datapoints_resampled(self.uiHandle)
             DataArraySizeResampled = ct.c_double * iPointsNumberResampled
             (dWavelengthResampled, dPowerResampled, dDetector1Resampled) = (DataArraySizeResampled(), DataArraySizeResampled(), DataArraySizeResampled())
@@ -767,7 +761,6 @@ class Scan:
                 results_interp["4"] = np.array(dDetector4Resampled, dtype=float)
 
             results = results_interp
-
         else:
             if self.model == "CT440":
                 DataPointSize = ct.c_int * 1
@@ -835,24 +828,21 @@ class Scan:
 
         df_res = df_res.apply(pd.to_numeric)  # OPTIMIZE: good to have float for plotting but bad rounding for saving data. could have get_data_str() for saving and get_data() for plotting
 
-        self.dev.dev.data = df_res
+        self.dev.data = df_res
 
-        if hasattr(self.dev.dev, "interface"):
-            self.dev.dev.interface.set_data(df_res)
-
+        if hasattr(self.dev, "interface"):
+            self.dev.interface.set_data(df_res)
 
     def get_data(self):
-        return pd.DataFrame(self.dev.dev.data)
-
+        return pd.DataFrame(self.dev.data)
 
     def get_input_source(self):
         return self._input_source
 
     def set_input_source(self, value):
-        assert value in range(1,self.dev._NBR_INPUT+1), f"Laser number can only be among {[i for i in range(1,self.dev._NBR_INPUT+1)]}, not {value}"
+        assert value in range(1, self._NBR_INPUT+1), f"Laser number can only be among {[i for i in range(1,self._NBR_INPUT+1)]}, not {value}"
         self._input_source = int(value)
         self.controller.switch_input(self.uiHandle, self._input_source)  # BUG: doesn't work for me (ct400)
-
 
     def get_driver_model(self):
         config = []
@@ -899,59 +889,19 @@ class Scan:
         config.append({'element':'variable','name':'input_source','type':int,
                        'read_init':True,'read':self.get_input_source,'write':self.set_input_source,
                        'help':'Select the input source laser (1,2,3,4)'})
-
         return config
 
 
 class Detectors:
-    """ Contain only the ct400/ct440 commands related to the detectors (no laser commands)"""
+    """ Contain only the CT400/CT440 commands related to the detectors (no laser commands)"""
 
-    def __init__(self, dev, libpath):
-        self.libpath = libpath
+    controller: None
+    uiHandle: int
 
-        self.dev = dev  # used by the laser. dev is Driver
-        self.model = self.dev.model
-
-        try:
-            self.connect()
-        except Exception as er:
-            print("Detectors: ", er, file=sys.stderr)
-
-    def connect(self):
-        try:
-            if self.model == "CT440":
-                from ct440_lib import CT440
-                self.controller = CT440(self.libpath)
-            else:
-                from ct400_lib import CT400
-                self.controller = CT400(self.libpath)
-        except OSError:
-            self.controller = None
-            self.uiHandle = -1
-            raise OSError(f"Can't found the {self.model}")
-
-        iError = ct.c_int32()
-        uiHandle = self.controller.init(iError)
-        self.uiHandle = uiHandle
-
-        if self.uiHandle:
-            pass
-        else:
-            raise ConnectionError(CONNECTION_ERROR)
-
-        self._NBR_INPUT = self.controller.get_nb_inputs(self.uiHandle)
-        self._NBR_DETECTOR = self.controller.get_nb_detectors(self.uiHandle)
-
-        #  CT440 and CT400 option (0: SMF, 1: PM13, 2: PM15)
-        if (self.controller.get_ct_type(self.uiHandle) == 1):
-            self._OPTION = "PM13 (1260-1360 nm)"
-        elif (self.controller.get_ct_type(self.uiHandle) == 2):
-            self._OPTION = "PM15 (1440-1640 nm)"
-        else:
-            self._OPTION = "SMF(1240-1680nm)"
-
-        assert self.controller.check_connected(self.uiHandle), CONNECTION_ERROR
-
+    def __init__(self, dev):  # dev is the Driver instance
+        self.dev = dev
+        self.controller = self.dev.controller
+        self.uiHandle = self.dev.uiHandle
 
     def get_spectral_lines(self):
         iLinesDetected = self.controller.get_nb_lines_detected(self.uiHandle)
@@ -960,7 +910,6 @@ class Detectors:
 
         self.controller.scan_get_lines_detection_array(self.uiHandle, dLinesValues, iLinesDetected)
         return dLinesValues
-
 
     def get_detector_power(self):
         assert not self.dev.scan.scan_running, "Can't measure detector power during a scan"
@@ -1011,41 +960,32 @@ class Detectors:
 
         config.append({'element':'variable','name':'Vext','unit':'V','type':float,
                         'read':self.get_vext,'help':'Voltage ext in V'})
-
         return config
-
-    def close(self):
-
-        if self.controller is not None:
-            self.controller.close(self.uiHandle)
 
 
 class Driver():
 
-    def __init__(self, libpath, configpath, model):
+    configpath: str
+    model: str
 
-        self.libpath = libpath
-        self.configpath = configpath
-        self.model = model
+    def __init__(self):
 
-        self.config = read_xml(configpath)
+        self.config = read_xml(self.configpath)
 
         self.data = pd.DataFrame()
 
-        sys.path.append(os.path.dirname(__file__))  # needed for ct400_lib import
-        sys.path.append(os.path.dirname(os.path.dirname(__file__)))  # needed for plotter import
-
-        self.detectors = Detectors(self, self.libpath)
-
-        if not hasattr(self.detectors, "_NBR_INPUT"):
-            self.detectors._NBR_INPUT = 4
+        self.detectors = Detectors(self)
 
         self.nl = len(self.config['address'])
 
-        for i in range(1,self.nl+1):
-            setattr(self,f'laser{i}',Laser(self.detectors,i))
+        for i in range(1, self.nl+1):
+            setattr(self, f'laser{i}', Laser(self, i))
 
-        self.scan = Scan(self.detectors)
+        self.scan = Scan(self)
+
+        # OBSOLETE: needed for plotter import
+        if os.path.dirname(os.path.dirname(__file__)) not in sys.path:
+            sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
         try:
             from plotter.plotter import Driver_DEFAULT
@@ -1053,7 +993,6 @@ class Driver():
         except Exception as e:
             print(f"Warning: {e}. Will not use interface", file=sys.stderr)
             pass
-
 
     def get_config(self):
         config = {
@@ -1074,23 +1013,21 @@ class Driver():
 
     def get_driver_model(self):
 
-        config = []
+        model = []
 
-        interface = self.__dict__.get("interface")
-        if interface is not None:
-            config.append({'element':'module','name':'interface','object':getattr(self,'interface'),
+        if hasattr(self, 'interface'):
+            model.append({'element':'module','name':'interface','object':self.interface,
                            'help': "Module imported from driver 'plotter'. Can be used to compute bandwidth."})
 
-        config.append({'element':'module','name':'detectors','object':getattr(self,'detectors'),
+        model.append({'element':'module','name':'detectors','object':self.detectors,
                        'help': 'Module to measure detectors power.'})
         for i in range(1,self.nl+1):
-            config.append({'element':'module','name':f'laser{i}','object':getattr(self,f'laser{i}'),
+            model.append({'element':'module','name':f'laser{i}','object':getattr(self,f'laser{i}'),
                            'help': f'Module to control laser{i} using {self.model} commands.'})
 
-        config.append({'element':'module','name':'scan','object':getattr(self,'scan'),
+        model.append({'element':'module','name':'scan','object':self.scan,
                        'help': 'Module to set and do wavelength scan.'})
-
-        return config
+        return model
 
 
 #################################################################################
@@ -1102,7 +1039,20 @@ class Driver_DLL(Driver):
         model="CT400",
         **kwargs):
 
+        self.libpath = libpath
+        self.configpath = configpath
         self.model = model
+
+        # needed for ct400_lib import
+        if os.path.dirname(__file__) not in sys.path:
+            sys.path.append(os.path.dirname(__file__))
+
+        try:
+            self.connect()
+        except Exception as e:
+            print(f"Error with {self.model}: {e}", file=sys.stderr)
+
+        Driver.__init__(self)
 
         self.ct400_command_list = [
             "CT400_Init",
@@ -1148,21 +1098,69 @@ class Driver_DLL(Driver):
             "CT440_GetCT440DSPver",
             "CT440_PolState",
             "CT440_ScanGetProgress",
-
             ]
 
-        Driver.__init__(self, libpath, configpath, model=model)
+    def connect(self):
+        """Creates: 'controller', 'uiHandle', '_NBR_INPUT'.
+        If succeed creates: '_NBR_DETECTOR', '_OPTION'
+        """
+        try:
+            if self.model == "CT440":
+                from ct440_lib import CT440
+                self.controller = CT440(self.libpath)
+            else:
+                from ct400_lib import CT400
+                self.controller = CT400(self.libpath)
+        except OSError:
+            self.controller = None
+            self.uiHandle = -1
+            self._NBR_INPUT = 4
 
+            if os.path.exists(self.libpath):
+                e = f"Could not find one or more dependencies of module libpath=r'{self.libpath}'."
+            else:
+                e = f"libpath=r'{self.libpath}' doesn't exists!"
+
+                main_folder = self.libpath[: self.libpath.find('Library ')]
+                if os.path.exists(main_folder):
+                    folders = [folder for folder in os.listdir(main_folder) if 'Library ' in folder]
+                    if len(folders) > 0:
+                        e += f" Try using '{folders[0]}' instead."
+
+            raise OSError(e)
+
+        iError = ct.c_int32()
+        uiHandle = self.controller.init(iError)
+        self.uiHandle = uiHandle
+
+        if self.uiHandle:
+            pass
+        else:
+            raise ConnectionError(CONNECTION_ERROR)
+
+        self._NBR_INPUT = self.controller.get_nb_inputs(self.uiHandle)
+        self._NBR_DETECTOR = self.controller.get_nb_detectors(self.uiHandle)
+
+        #  CT440 and CT400 option (0: SMF, 1: PM13, 2: PM15)
+        if (self.controller.get_ct_type(self.uiHandle) == 1):
+            self._OPTION = "PM13 (1260-1360 nm)"
+        elif (self.controller.get_ct_type(self.uiHandle) == 2):
+            self._OPTION = "PM15 (1440-1640 nm)"
+        else:
+            self._OPTION = "SMF(1240-1680nm)"
+
+        assert self.controller.check_connected(self.uiHandle), CONNECTION_ERROR
 
     def close(self):
         try:
-            self.detectors.close()
-        except Exception as er:
-            print(f"Warning, {self.model} didn't close properly:", er, file=sys.stderr)
+            if self.controller:
+                self.controller.close(self.uiHandle)
+        except Exception as e:
+            print(f"Warning, {self.model} didn't close properly: {e}", file=sys.stderr)
         try:
             self.config = self.get_config()
             write_xml(self.config, self.configpath)
-        except Exception as er:
-            print(f"Warning, {self.model} config file not saved:", er, file=sys.stderr)
+        except Exception as e:
+            print(f"Warning, {self.model} config file not saved: {e}", file=sys.stderr)
 ############################## Connections classes ##############################
 #################################################################################

@@ -9,7 +9,8 @@ import sys
 import ctypes as ct
 import time
 
-sys.path.append(os.path.dirname(__file__))  # needed for wlmConst import
+if os.path.dirname(__file__) not in sys.path:
+    sys.path.append(os.path.dirname(__file__))  # needed for wlmConst import
 import wlmConst as wc
 
 
