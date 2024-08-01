@@ -14,6 +14,8 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import numpy as np
 
+category = 'All-band Optical Component Tester'
+
 # Definition of various constants to use the same names as the C interface
 (LS_TunicsPlus, LS_TunicsPurity, LS_TunicsReference, LS_TunicsT100s,
      LS_TunicsT100r, LS_JdsuSws, LS_Agilent, NB_SOURCE) = (0, 1, 2, 3,
@@ -1104,6 +1106,10 @@ class Driver_DLL(Driver):
         """Creates: 'controller', 'uiHandle', '_NBR_INPUT'.
         If succeed creates: '_NBR_DETECTOR', '_OPTION'
         """
+        self.controller = None
+        self.uiHandle = -1
+        self._NBR_INPUT = 4
+
         try:
             if self.model == "CT440":
                 from ct440_lib import CT440
@@ -1112,10 +1118,6 @@ class Driver_DLL(Driver):
                 from ct400_lib import CT400
                 self.controller = CT400(self.libpath)
         except OSError:
-            self.controller = None
-            self.uiHandle = -1
-            self._NBR_INPUT = 4
-
             if os.path.exists(self.libpath):
                 e = f"Could not find one or more dependencies of module libpath=r'{self.libpath}'."
             else:
@@ -1123,9 +1125,10 @@ class Driver_DLL(Driver):
 
                 main_folder = self.libpath[: self.libpath.find('Library ')]
                 if os.path.exists(main_folder):
-                    folders = [folder for folder in os.listdir(main_folder) if 'Library ' in folder]
-                    if len(folders) > 0:
-                        e += f" Try using '{folders[0]}' instead."
+                    versions = [folder for folder in os.listdir(main_folder) if 'Library ' in folder]
+                    if len(versions) > 0:
+                        highest_version = max(versions, key=lambda v: tuple(map(int, v.split('.'))))
+                        e += f" Try using '{highest_version}' instead."
 
             raise OSError(e)
 

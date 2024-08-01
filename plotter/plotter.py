@@ -78,7 +78,7 @@ def find_header(filename, sep=no_default, skiprows=None):
     return ("infer", skiprows, no_default) if tuple(df.dtypes) != tuple(df_header.dtypes) else (None, skiprows, no_default)
 
 
-def formatData(data):
+def data_to_dataframe(data):
     """ Format data """
     try:
         data = pd.DataFrame(data)
@@ -115,7 +115,7 @@ def importData(filename):
         data = pd.read_csv(filename, sep="\t", header=header, skiprows=skiprows, names=columns)
 
     assert len(data) != 0, "Can't import empty DataFrame"
-    data = formatData(data)
+    data = data_to_dataframe(data)
     return data
 
 
@@ -233,7 +233,7 @@ class Driver :
     def set_data(self, value):
         """  Open data from DataFrame """
 
-        df = formatData(value)
+        df = data_to_dataframe(value)
         self._open(df)
 
 
