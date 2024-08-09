@@ -6,6 +6,7 @@ Supported instruments (identified): Yenista CT400, EXFO CT440.
 -
 """
 
+from typing import Tuple, List, Union
 import sys
 import os
 import ctypes as ct
@@ -419,6 +420,11 @@ class Laser:
         self.uiHandle = self.dev.uiHandle
         self.NUM = num
 
+        self._model_tuple = (
+            ['TunicsPlus', 'TunicsPurity', 'TunicsReference',
+             'TunicsT100S', 'TunicsT100R', 'JDSU SWS',
+             'Agilent', 'Manual'], 0)
+
         self._init_variables()
 
         if self.controller:
@@ -461,80 +467,87 @@ class Laser:
                                       ct.c_double(self._high_wavelength),
                                       self._speed)
 
-    def get_model(self):
-        return self._laser_model
+    def get_model(self) -> Tuple[List[str], int]:
+        return self._model_tuple
 
-    def set_model(self, value):
-        self._laser_model = int(value)
+    def set_model(self, value: Union[int, Tuple[List[str], int]]):
+        ''' Select the laser model with the new tuple type. Can also use an int
+        for legacy with old set_model definition '''
+        if isinstance(value, int):  # Compatibility with old set_model def
+            index = self._model_tuple[0].index(laser_code(value, permute=True))
+            self._model_tuple = [self._model_tuple[0], index]
+
+        self._model_tuple = tuple(value)
+        self._laser_model = laser_code(self._model_tuple[0][self._model_tuple[1]])
         self._init_laser()
 
-    def get_GPIBID(self):
+    def get_GPIBID(self) -> int:
         return self._GPIBID
 
-    def set_GPIBID(self, value):
+    def set_GPIBID(self, value: int):
         self._GPIBID = int(value)
         self._init_laser()
 
-    def get_GPIBAdress(self):
+    def get_GPIBAdress(self) -> int:
         return self._GPIBAdress
 
-    def set_GPIBAdress(self, value):
+    def set_GPIBAdress(self, value: str):
         self._GPIBAdress = int(value)
         self._init_laser()
 
-    def get_low_wavelength(self):
+    def get_low_wavelength(self) -> float:
         return self._low_wavelength
 
-    def set_low_wavelength(self, value):
+    def set_low_wavelength(self, value: float):
         self._low_wavelength = float(value)
         self._init_laser()
 
-    def get_high_wavelength(self):
+    def get_high_wavelength(self) -> float:
         return self._high_wavelength
 
-    def set_high_wavelength(self, value):
+    def set_high_wavelength(self, value: float):
         self._high_wavelength = float(value)
         self._init_laser()
 
-    def get_speed(self):
+    def get_speed(self) -> int:
         return self._speed
 
-    def set_speed(self, value):
+    def set_speed(self, value: int):
         self._speed = int(value)
         self._init_laser()
 
-    def get_connected(self):
+    def get_connected(self) -> bool:
         return self._connected
 
-    def set_connected(self, value):
+    def set_connected(self, value: bool):
         self._connected = bool(int(float(value)))
         self._init_laser()
 
-    def get_output_state(self):
+    def get_output_state(self) -> bool:
         return self._state
 
-    def set_output_state(self, state):
+    def set_output_state(self, state: bool):
         self._state = ENABLE if bool(int(float(state))) else DISABLE
         self._CmdLaser()
 
-    def get_wavelength(self):
+    def get_wavelength(self) -> float:
         return self._wavelength
 
-    def set_wavelength(self, value):
+    def set_wavelength(self, value: float):
         self._wavelength = float(value)
         self._CmdLaser()
 
-    def get_power(self):
+    def get_power(self) -> float:
         return self._power
 
-    def set_power(self, value):
+    def set_power(self, value: float):
         self._power = float(value)
         self._CmdLaser()
 
     def _CmdLaser(self):
         self.controller.cmd_laser(self.uiHandle, self.NUM, self._state, ct.c_double(self._wavelength), ct.c_double(self._power))
 
-    def get_driver_model(self):
+    def get_driver_model(self) -> List[dict]:
         config = []
 
         config.append({'element':'variable','name':'output','type':bool,
@@ -570,9 +583,9 @@ class Laser:
                        'read_init':True,'read':self.get_GPIBAdress,'write':self.set_GPIBAdress,
                        "help": "Set the laser gbib address."})
 
-        config.append({'element':'variable','name':'model','type':int,  # OPTIMIZE: could use tuple instead
+        config.append({'element':'variable','name':'model','type':tuple,
                        'read_init':True,'read':self.get_model,'write':self.set_model,
-                       "help": "Set the laser model \n(LS_TunicsPlus, LS_TunicsPurity, LS_TunicsReference, LS_TunicsT100s, LS_TunicsT100r, LS_JdsuSws, LS_Agilent, NB_SOURCE) \n(0, 1, 2, 3, 4, 5, 6, 7)"})
+                       "help": "Set the laser model"})
 
         config.append({'element':'variable','name':'connected','type':bool,
                        'read_init':True,'read':self.get_connected, 'write':self.set_connected,
@@ -628,21 +641,22 @@ class Scan:
         self.set_scan(self._power_scan, self._low_wavelength_scan, self._high_wavelength_scan)
         self.set_res(self._res)
 
-    def get_low_wavelength_scan(self):
+    def get_low_wavelength_scan(self) -> float:
         return self._low_wavelength_scan
 
-    def set_low_wavelength_scan(self, value):
+    def set_low_wavelength_scan(self, value: float):
         self._low_wavelength_scan = float(value)
         self.set_scan(self._power_scan, self._low_wavelength_scan, self._high_wavelength_scan)
 
-    def get_high_wavelength_scan(self):
+    def get_high_wavelength_scan(self) -> float:
         return self._high_wavelength_scan
 
-    def set_high_wavelength_scan(self, value):
+    def set_high_wavelength_scan(self, value: float):
         self._high_wavelength_scan = float(value)
         self.set_scan(self._power_scan, self._low_wavelength_scan, self._high_wavelength_scan)
 
-    def set_scan(self, power, low_wl, high_wl, res="default"):
+    def set_scan(self, power: float, low_wl: float, high_wl: float,
+                 res: int = "default"):
         if self.model == "CT440":
             if res == "default":
                 res = self._res
@@ -662,10 +676,10 @@ class Scan:
                     ct.c_double(low_wl),
                     ct.c_double(high_wl))
 
-    def get_res(self):
+    def get_res(self) -> int:
         return self._res
 
-    def set_res(self, value):
+    def set_res(self, value: int):
         if self.model == "CT440":
             self._res = int(value)
             self.set_scan(self._power_scan, self._low_wavelength_scan, self._high_wavelength_scan)
@@ -673,35 +687,35 @@ class Scan:
             self._res = int(value)
             self.controller.set_resolution(self.uiHandle, self._res)
 
-    def get_interpolate(self):
+    def get_interpolate(self) -> bool:
         return self._interpolate
 
-    def set_interpolate(self, value):
+    def set_interpolate(self, value: bool):
         self._interpolate = bool(int(float(value)))
 
-    def get_power_scan(self):
+    def get_power_scan(self) -> float:
         return self._power_scan
 
-    def set_power_scan(self, value):
+    def set_power_scan(self, value: float):
         self._power_scan = float(value)
         self.set_scan(self._power_scan, self._low_wavelength_scan, self._high_wavelength_scan)
 
-    def get_detector2_state(self):
+    def get_detector2_state(self) -> bool:
         return self._detector2_state
 
-    def set_detector2_state(self, value):
+    def set_detector2_state(self, value: bool):
         self._detector2_state = bool(int(float(value)))
 
-    def get_detector3_state(self):
+    def get_detector3_state(self) -> bool:
         return self._detector3_state
 
-    def set_detector3_state(self, value):
+    def set_detector3_state(self, value: bool):
         self._detector3_state = bool(int(float(value)))
 
-    def get_detector4_state(self):
+    def get_detector4_state(self) -> bool:
         return self._detector4_state
 
-    def set_detector4_state(self, value):
+    def set_detector4_state(self, value: bool):
         self._detector4_state = bool(int(float(value)))
 
     def do_sweep(self):
@@ -835,18 +849,18 @@ class Scan:
         if hasattr(self.dev, "interface"):
             self.dev.interface.set_data(df_res)
 
-    def get_data(self):
+    def get_data(self) -> pd.DataFrame:
         return pd.DataFrame(self.dev.data)
 
-    def get_input_source(self):
+    def get_input_source(self) -> int:
         return self._input_source
 
-    def set_input_source(self, value):
-        assert value in range(1, self._NBR_INPUT+1), f"Laser number can only be among {[i for i in range(1,self._NBR_INPUT+1)]}, not {value}"
+    def set_input_source(self, value: int):
+        assert value in range(1, self._NBR_INPUT+1), f"Laser number can only be among {list(range(1, self._NBR_INPUT + 1))}, not {value}"
         self._input_source = int(value)
         self.controller.switch_input(self.uiHandle, self._input_source)  # BUG: doesn't work for me (ct400)
 
-    def get_driver_model(self):
+    def get_driver_model(self) -> List[dict]:
         config = []
 
         config.append({'element':'variable','name':'power','unit':'mW','type':float,
@@ -905,7 +919,7 @@ class Detectors:
         self.controller = self.dev.controller
         self.uiHandle = self.dev.uiHandle
 
-    def get_spectral_lines(self):
+    def get_spectral_lines(self) -> List[float]:
         iLinesDetected = self.controller.get_nb_lines_detected(self.uiHandle)
         LinesArraySize = ct.c_double * iLinesDetected
         dLinesValues = LinesArraySize()
@@ -913,7 +927,7 @@ class Detectors:
         self.controller.scan_get_lines_detection_array(self.uiHandle, dLinesValues, iLinesDetected)
         return dLinesValues
 
-    def get_detector_power(self):
+    def get_detector_power(self) -> Tuple[float, float, float, float, float, float]:
         assert not self.dev.scan.scan_running, "Can't measure detector power during a scan"
 
         PowerArraySize = ct.c_double * 1
@@ -924,25 +938,25 @@ class Detectors:
         (Pout, P1, P2, P3, P4, Vext) = (round(Pout, 3), round(P1, 3), round(P2, 3), round(P3, 3), round(P4, 3), round(Vext, 3))
         return Pout, P1, P2, P3, P4, Vext
 
-    def get_detector_power0(self):
+    def get_detector_power0(self) -> float:
         return self.get_detector_power()[0]
 
-    def get_detector_power1(self):
+    def get_detector_power1(self) -> float:
         return self.get_detector_power()[1]
 
-    def get_detector_power2(self):
+    def get_detector_power2(self) -> float:
         return self.get_detector_power()[2]
 
-    def get_detector_power3(self):
+    def get_detector_power3(self) -> float:
         return self.get_detector_power()[3]
 
-    def get_detector_power4(self):
+    def get_detector_power4(self) -> float:
         return self.get_detector_power()[4]
 
-    def get_vext(self):
+    def get_vext(self) -> float:
         return self.get_detector_power()[5]
 
-    def get_driver_model(self):
+    def get_driver_model(self) -> List[dict]:
         config = []
 
         config.append({'element':'variable','name':'Pout','unit':'dBm','type':float,
@@ -996,7 +1010,7 @@ class Driver():
             print(f"Warning: {e}. Will not use interface", file=sys.stderr)
             pass
 
-    def get_config(self):
+    def get_config(self) -> dict:
         config = {
             "GPIBID": [getattr(self, f"laser{i}")._GPIBID for i in range(1, self.nl+1)],
             "address": [getattr(self, f"laser{i}")._GPIBAdress for i in range(1, self.nl+1)],
@@ -1013,7 +1027,7 @@ class Driver():
             }
         return config
 
-    def get_driver_model(self):
+    def get_driver_model(self) -> List[dict]:
 
         model = []
 
@@ -1125,10 +1139,10 @@ class Driver_DLL(Driver):
 
                 main_folder = self.libpath[: self.libpath.find('Library ')]
                 if os.path.exists(main_folder):
-                    versions = [folder for folder in os.listdir(main_folder) if 'Library ' in folder]
+                    versions = [folder[len('Library '):] for folder in os.listdir(main_folder) if 'Library ' in folder]
                     if len(versions) > 0:
                         highest_version = max(versions, key=lambda v: tuple(map(int, v.split('.'))))
-                        e += f" Try using '{highest_version}' instead."
+                        e += f" Try using 'Library {highest_version}' instead."
 
             raise OSError(e)
 
