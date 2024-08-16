@@ -48,14 +48,19 @@ class Driver():
         """ Used by autolab to create a device representation of the driver """
         model = []
 
-        model.append({'element': 'variable', 'name': 'channel', 'type': int,
-                      'read': self.get_channel, 'write': self.set_channel,
+        model.append({'element': 'variable',
+                      'name': 'channel',
+                      'type': int,
+                      'read': self.get_channel,
+                      'write': self.set_channel,
                       'help': 'Set active channel'})
-        model.append({'element': 'action', 'name': 'reset',
+        model.append({'element': 'action',
+                      'name': 'reset',
                       'do': self.reset,
                       'help': 'Reset instrument state'})
         for num in range(1, self.nb_channels+1):
-            model.append({'element': 'module', 'name': f'channel{num}',
+            model.append({'element': 'module',
+                          'name': f'channel{num}',
                           'object': getattr(self, f'channel{num}'),
                           'help': f'Commands for channel{num}'})
         return model
@@ -211,32 +216,52 @@ class Channel():
 
     def get_driver_model(self):
         model = []
-        model.append({'element': 'variable', 'name': 'amplitude', 'type': float,
-                      'write': self.amplitude, 'unit': 'Vpp',
+        model.append({'element': 'variable',
+                      'name': 'amplitude',
+                      'type': float,
+                      'write': self.amplitude,
+                      'unit': 'Vpp',
                       'help': 'set the amplitude'})
-        model.append({'element': 'variable', 'name': 'offset', 'type': float,
-                      'write': self.offset, 'unit': 'V',
+        model.append({'element': 'variable',
+                      'name': 'offset',
+                      'type': float,
+                      'write': self.offset,
+                      'unit': 'V',
                       'help': 'Set the offset'})
-        model.append({'element': 'variable', 'name': 'frequency', 'type': float,
-                      'write': self.frequency, 'unit': 'Hz',
+        model.append({'element': 'variable',
+                      'name': 'frequency',
+                      'type': float,
+                      'write': self.frequency,
+                      'unit': 'Hz',
                       'help': 'Set the frequency'})
-        model.append({'element': 'variable', 'name': 'output', 'type': str,
-                      'write': self.set_output, 'help': 'Enable/disable the output. Accepted arguments are: ON, OFF'})
-        model.append({'element': 'variable', 'name': 'mode', 'type': str,
-                      'write': self.set_mode, 'help': 'Set the output mode. Accepted arguments are: SINE, SQUARE, RAMP, TRIANG, PULSE, NOISE, PRBSPN7, PRBSPN9, PRBSPN11, PRBSPN15, PRBSPN20, PRBSPN23, PRBSPN29, PRBSPN31, ARB'})
-        model.append({'element': 'module', 'name': 'arbitrary_waveform',
+        model.append({'element': 'variable',
+                      'name': 'output',
+                      'type': str,
+                      'write': self.set_output,
+                      'help': 'Enable/disable the output. Accepted arguments are: ON, OFF'})
+        model.append({'element': 'variable',
+                      'name': 'mode',
+                      'type': str,
+                      'write': self.set_mode,
+                      'help': 'Set the output mode. Accepted arguments are: SINE, SQUARE, RAMP, TRIANG, PULSE, NOISE, PRBSPN7, PRBSPN9, PRBSPN11, PRBSPN15, PRBSPN20, PRBSPN23, PRBSPN29, PRBSPN31, ARB'})
+        model.append({'element': 'module',
+                      'name': 'arbitrary_waveform',
                       'object': self.arbitrary_waveform,
                       'help': f'Manage arbitrary waveform for channel{self.CHANNEL}'})
-        model.append({'element': 'module', 'name': 'burst',
+        model.append({'element': 'module',
+                      'name': 'burst',
                       'object': self.burst,
                       'help': f'Manage burst for channel{self.CHANNEL}'})
-        model.append({'element': 'module', 'name': 'modulation',
+        model.append({'element': 'module',
+                      'name': 'modulation',
                       'object': self.modulation,
                       'help': f'Manage modulation for channel{self.CHANNEL}'})
-        model.append({'element': 'module', 'name': 'sweep',
+        model.append({'element': 'module',
+                      'name': 'sweep',
                       'object': self.sweep,
                       'help': f'Manage sweep for channel{self.CHANNEL}'})
-        model.append({'element': 'action', 'name': 'trigger',
+        model.append({'element': 'action',
+                      'name': 'trigger',
                       'do': self.trigger,
                       'help': 'Send a trigger request'})
 
@@ -303,11 +328,11 @@ class ArbitraryWaveform:
         # Raise error if waveform is too big
         assert len(waveform) <= 2**(13), 'Waveform array too big. Maximum length is 2**(13)=8192'
 
-        # Normalize wavefunction to range ]-1,1[
+        # We encode waveform to a 16 bit resolution, that is the new range is [-2**(16)/2 ,2**(16)/2[ = [-32768,32768[
+        # Normalize wavefunction to maxiumm range [-32768, 32768]
         waveform = scale_waveform(waveform)
-
-        # We encode the range ]1,-1[ to a 16 bit resolution, that is the new range is ]-2**(16)/2 ,2**(16)/2[ = ]-32768,32768[
-        waveform = waveform * 2**(16-1)
+        # Clip wavefunction to range [-32768, 32767]
+        waveform = clip_waveform(waveform)
 
         # Upload waveform to device
         self._write_array_to_byte(waveform, arb_chan)
@@ -366,20 +391,33 @@ class ArbitraryWaveform:
     def get_driver_model(self):
         model = []
 
-        model.append({'element': 'action', 'name': 'load', 'param_type': str,
+        model.append({'element': 'action', 'name':
+                      'load', 'param_type': str,
                       'do': self.load_waveform,
                       'help': 'Set the output waveform type to <DC>, <SINC>, <HAVERSINE>, <CARDIAC>, <EXPRISE>, <LOGRISE>, <EXPFALL>, <LOGFALL>, <GAUSSIAN>, <LORENTZ>, <DLORENTZ>, <TRIANG>, <ARB1>, <ARB2>, <ARB3> or <ARB4>.'})
-        model.append({'element': 'variable', 'name': 'waveform_1', 'type': np.ndarray,
-                      'read': self.read_waveform_1, 'write': self.send_waveform_1,
+        model.append({'element': 'variable',
+                      'name': 'waveform_1',
+                      'type': np.ndarray,
+                      'read': self.read_waveform_1,
+                      'write': self.send_waveform_1,
                       'help': 'Set/Read arbitrary waveform in location ARB1'})
-        model.append({'element': 'variable', 'name': 'waveform_2', 'type': np.ndarray,
-                      'read': self.read_waveform_2, 'write': self.send_waveform_2,
+        model.append({'element': 'variable',
+                      'name': 'waveform_2',
+                      'type': np.ndarray,
+                      'read': self.read_waveform_2,
+                      'write': self.send_waveform_2,
                       'help': 'Set/Read arbitrary waveform in location ARB2'})
-        model.append({'element': 'variable', 'name': 'waveform_3', 'type': np.ndarray,
-                      'read': self.read_waveform_3, 'write': self.send_waveform_3,
+        model.append({'element': 'variable',
+                      'name': 'waveform_3',
+                      'type': np.ndarray,
+                      'read': self.read_waveform_3,
+                      'write': self.send_waveform_3,
                       'help': 'Set/Read arbitrary waveform in location ARB3'})
-        model.append({'element': 'variable', 'name': 'waveform_4', 'type': np.ndarray,
-                      'read': self.read_waveform_4, 'write': self.send_waveform_4,
+        model.append({'element': 'variable',
+                      'name': 'waveform_4',
+                      'type': np.ndarray,
+                      'read': self.read_waveform_4,
+                      'write': self.send_waveform_4,
                       'help': 'Set/Read arbitrary waveform in location ARB4'})
         return model
 
@@ -422,22 +460,36 @@ class Burst:
     def get_driver_model(self):
         model = []
 
-        model.append({'element': 'variable', 'name': 'trigger_source', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'trigger_source',
+                      'type': str,
                       'write': self.set_trigger_source,
                       'help': 'Set the burst trigger source to <INT>, <EXT> or <MAN>'})
-        model.append({'element': 'variable', 'name': 'trigger_period', 'type': float,
-                      'write': self.set_trigger_period, 'unit': 's',
+        model.append({'element': 'variable',
+                      'name': 'trigger_period',
+                      'type': float,
+                      'write': self.set_trigger_period,
+                      'unit': 's',
                       'help': 'Set the burst trigger period in sec.'})
-        model.append({'element': 'variable', 'name': 'trigger_slope', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'trigger_slope',
+                      'type': str,
                       'write': self.set_trigger_slope,
                       'help': 'Set the burst trigger slope to <POS> or <NEG>.'})
-        model.append({'element': 'variable', 'name': 'count', 'type': int,
+        model.append({'element': 'variable',
+                      'name': 'count',
+                      'type': int,
                       'write': self.set_count,
                       'help': 'Set the burst count to n cycles.'})
-        model.append({'element': 'variable', 'name': 'phase', 'type': float,
-                      'write': self.set_phase, 'unit': '°',
+        model.append({'element': 'variable',
+                      'name': 'phase',
+                      'type': float,
+                      'write': self.set_phase,
+                      'unit': '°',
                       'help': 'Set the burst phase in degree.'})
-        model.append({'element': 'variable', 'name': 'type', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'type',
+                      'type': str,
                       'write': self.set_type,
                       'help': 'Set the burst to <OFF>, <NCYC>, <GATED> or <INFINITE>.'})
         return model
@@ -481,20 +533,32 @@ class Modulation:
     def get_driver_model(self):
         model = []
 
-        model.append({'element': 'variable', 'name': 'type', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'type',
+                      'type': str,
                       'write': self.set_type,
                       'help': 'Set modulation to <OFF>, <AM>, <AMSC>, <FM>, <PM>, <ASK>, <FSK>, <SUM>, <BPSK> or <PWM>'})
-        model.append({'element': 'variable', 'name': 'fm_shape', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'fm_shape',
+                      'type': str,
                       'write': self.set_fm_shape,
                       'help': 'Set FM waveform shape to <SINE>, <SQUARE>, <RAMPUP>, <RAMPDN>, <TRIANG>, <NOISE>, <DC>, <SINC>, <EXPRISE>, <LOGRISE>, <EXPFALL>, <LOGFALL>, <HAVERSINE>, <CARDIAC>, <GAUSSIAN>, <LORENTZ>, <DLORENTZ>, <ARB1>, <ARB2>, <ARB3>, <ARB4>, <PRBSPN7>, <PRBSPN9>, <PRBSPN11>, <PRBSPN15>, <PRBSPN20>, <PRBSPN23>, <PRBSPN29> or < PRBSPN31>'})
-        model.append({'element': 'variable', 'name': 'fm_source', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'fm_source',
+                      'type': str,
                       'write': self.set_fm_source,
                       'help': 'Set FM waveform source to <INT> or <EXT>'})
-        model.append({'element': 'variable', 'name': 'fm_deviation', 'type': float,
-                      'write': self.set_fm_deviation, 'unit': 'Hz',
+        model.append({'element': 'variable',
+                      'name': 'fm_deviation',
+                      'type': float,
+                      'write': self.set_fm_deviation,
+                      'unit': 'Hz',
                       'help': 'Set FM waveform deviation in Hz'})
-        model.append({'element': 'variable', 'name': 'fm_frequency', 'type': float,
-                      'write': self.set_fm_frequency, 'unit': 'Hz',
+        model.append({'element': 'variable',
+                      'name': 'fm_frequency',
+                      'type': float,
+                      'write': self.set_fm_frequency,
+                      'unit': 'Hz',
                       'help': 'Set FM waveform frequency in Hz'})
         return model
 
@@ -562,61 +626,92 @@ class Sweep:
     def get_driver_model(self):
         model = []
 
-        model.append({'element': 'variable', 'name': 'state', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'state',
+                      'type': str,
                       'write': self.set_state,
                       'help': 'Set the sweep to <ON> or <OFF>.'})
-        model.append({'element': 'variable', 'name': 'type', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'type',
+                      'type': str,
                       'write': self.set_type,
                       'help': 'Set the sweep type to <LINUP>, <LINDN>, <LOGUP> or <LOGDN>.'})
-        model.append({'element': 'variable', 'name': 'mode', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'mode',
+                      'type': str,
                       'write': self.set_mode,
                       'help': 'Set the sweep mode to <CONT> or <TRIG>.'})
-        model.append({'element': 'variable', 'name': 'trigger_source', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'trigger_source',
+                      'type': str,
                       'write': self.set_trigger_source,
                       'help': 'Set the sweep trigger source to <INT>, <EXT> or <MAN>.'})
-        model.append({'element': 'variable', 'name': 'trigger_period', 'type': float,
-                      'write': self.set_trigger_period, 'unit': 's',
+        model.append({'element': 'variable',
+                      'name': 'trigger_period',
+                      'type': float,
+                      'write': self.set_trigger_period,
+                      'unit': 's',
                       'help': 'Set the sweep trigger period in sec.'})
-        model.append({'element': 'variable', 'name': 'trigger_slope', 'type': str,
+        model.append({'element': 'variable',
+                      'name': 'trigger_slope',
+                      'type': str,
                       'write': self.set_trigger_slope,
                       'help': 'Set the sweep trigger slope to <POS> or <NEG>.'})
-        model.append({'element': 'variable', 'name': 'start', 'type': float,
-                      'write': self.set_start, 'unit': 'Hz',
+        model.append({'element': 'variable',
+                      'name': 'start',
+                      'type': float,
+                      'write': self.set_start,
+                      'unit': 'Hz',
                       'help': 'Set the sweep start frequency in Hz.'})
-        model.append({'element': 'variable', 'name': 'stop', 'type': float,
-                      'write': self.set_stop, 'unit': 'Hz',
+        model.append({'element': 'variable',
+                      'name': 'stop',
+                      'type': float,
+                      'write': self.set_stop,
+                      'unit': 'Hz',
                       'help': 'Set the sweep stop frequency in Hz.'})
-        model.append({'element': 'variable', 'name': 'center', 'type': float,
-                      'write': self.set_center, 'unit': 'Hz',
+        model.append({'element': 'variable',
+                      'name': 'center',
+                      'type': float,
+                      'write': self.set_center,
+                      'unit': 'Hz',
                       'help': 'Set the sweep center frequency in Hz.'})
-        model.append({'element': 'variable', 'name': 'span', 'type': float,
-                      'write': self.set_span, 'unit': 'Hz',
+        model.append({'element': 'variable',
+                      'name': 'span',
+                      'type': float,
+                      'write': self.set_span,
+                      'unit': 'Hz',
                       'help': 'Set the sweep span frequency in Hz.'})
-        model.append({'element': 'variable', 'name': 'time', 'type': float,
-                      'write': self.set_time, 'unit': 's',
+        model.append({'element': 'variable',
+                      'name': 'time',
+                      'type': float,
+                      'write': self.set_time,
+                      'unit': 's',
                       'help': 'Set the sweep time in sec.'})
 
         return model
 
 
-def scale_waveform(waveform: np.ndarray) -> np.ndarray:
-    """ Scale waveform to required ]-1,1[ range """
+def scale_waveform(waveform: np.ndarray, half_range: int = 2**15) -> np.ndarray:
+    """ Normalized a waveform to half_range (default = 2**15) """
     # Ensure the waveform is a NumPy array
     waveform = np.array(waveform, dtype=float, copy=False)
 
     # Find the minimum and maximum values
     min_val = np.min(waveform)
     max_val = np.max(waveform)
+    extremum = max(abs(min_val), abs(max_val))
 
-    # Scale to the range [0, 1]
-    waveform_normalized = (waveform - min_val) / (max_val - min_val)
+    waveform = waveform / extremum * half_range
 
-    # Scale to the range ]-1, 1[
-    waveform_scaled = 2 * waveform_normalized - 1
+    return waveform
 
-    # Exclude exact -1 and 1
-    # epsilon = np.finfo(float).eps  # Machine epsilon for float type
-    epsilon = 1e-5
-    waveform_scaled = np.clip(waveform_scaled, -1+epsilon, 1-epsilon)
 
-    return waveform_scaled
+def clip_waveform(waveform: np.ndarray, half_range: int = 2**15) -> np.ndarray:
+    """ Clip data to have maximum range [half_range, half_range-1] (default: [-32768, 32767]) """
+    waveform = np.array(waveform, dtype=float, copy=False)
+
+    # Convert to int and clip data
+    waveform = np.floor(waveform).astype(int)
+    waveform = np.clip(waveform, -half_range, half_range-1)
+
+    return waveform
