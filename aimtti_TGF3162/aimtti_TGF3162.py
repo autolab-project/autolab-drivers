@@ -694,7 +694,7 @@ class Sweep:
 def scale_waveform(waveform: np.ndarray, half_range: int = 2**15) -> np.ndarray:
     """ Normalized a waveform to half_range (default = 2**15) """
     # Ensure the waveform is a NumPy array
-    waveform = np.array(waveform, dtype=float, copy=False)
+    waveform = np.asarray(waveform, dtype=float)
 
     # Find the minimum and maximum values
     min_val = np.min(waveform)
@@ -708,7 +708,7 @@ def scale_waveform(waveform: np.ndarray, half_range: int = 2**15) -> np.ndarray:
 
 def clip_waveform(waveform: np.ndarray, half_range: int = 2**15) -> np.ndarray:
     """ Clip data to have maximum range [half_range, half_range-1] (default: [-32768, 32767]) """
-    waveform = np.array(waveform, dtype=float, copy=False)
+    waveform = np.asarray(waveform, dtype=float)
 
     # Convert to int and clip data
     waveform = np.floor(waveform).astype(int)
