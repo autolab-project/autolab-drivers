@@ -32,17 +32,17 @@ class Driver() :
     # do MS9703A = MV02 ? older than MS9710B
 
     def _MS9710B_variables(self):
-        self.allowed_points = (51,101,251,501,1001,2001,5001)
+        self.allowed_points = (51, 101, 251, 501, 1001, 2001, 5001)
         self.allowed_res = (0.07, 0.1, 0.2, 0.5, 1)
         self.allowed_vbw = (10, 100, 1000, 10000, 100000, 1000000)
 
     def _MS9710C_variables(self):
-        self.allowed_points = (51,101,251,501,1001,2001,5001)
+        self.allowed_points = (51, 101, 251, 501, 1001, 2001, 5001)
         self.allowed_res = (0.05, 0.07, 0.1, 0.2, 0.5, 1)
         self.allowed_vbw = (10, 100, 1000, 10000, 100000, 1000000)
 
     def _MS9740A_variables(self):
-        self.allowed_points = (51,101,251,501,1001,2001,5001,10001,20001,50001)
+        self.allowed_points = (51, 101, 251, 501, 1001, 2001, 5001, 10001, 20001, 50001)
         self.allowed_res = (0.03, 0.05, 0.07, 0.1, 0.2, 0.5, 1)
         self.allowed_vbw = (10, 100, 200, 1000, 2000, 10000, 100000, 1000000)
         # could set function/unit depending on device
@@ -57,7 +57,7 @@ class Driver() :
 
     def _get_unit(self, value):
         import re
-        pattern = re.compile('[\W\d_]+')
+        pattern = re.compile(r'[\W\d_]+')
         unit = pattern.sub('', str(value)).upper()
         return unit
 
@@ -288,105 +288,137 @@ class Driver() :
         self.write('SST')
         self.opc()
 
-
-
     def get_driver_model(self):
         model = []
-        model.append({'element':'variable','name':'resolution',
-                      'write':self.set_resol,'read':self.get_resol,
-                      'type':float, 'unit':'nm',
-                      'help':"Resolution (nm)"})
-        model.append({'element':'variable','name':'span',
-                      'write':self.set_span,'read':self.get_span,
-                      'type':float, 'unit':'nm',
-                      'help':"Span (nm)"})
-        model.append({'element':'variable','name':'vbw',
-                      'write':self.set_vbw,'read':self.get_vbw,
-                      'type':int, 'unit':"Hz",
-                      'help':"Video Bandwitdh (Hz)"})
-        model.append({'element':'variable','name':'points',
-                      'write':self.set_nbpts,'read':self.get_nbpts,
-                      'type':int,
-                      'help':"How many points"})
-        model.append({'element':'variable','name':'wavelength_center',
-                      'write':self.set_wavelength_center,'read':self.get_wavelength_center,
-                      'type':float,'unit':'nm',
-                      'help':"Center wavelength (nm)"})
-        model.append({'element':'variable','name':'wavelength_start',
-                      'write':self.set_wavelength_start,'read':self.get_wavelength_start,
-                      'type':float,'unit':'nm',
-                      'help':"Start wavelength (nm)"})
-        model.append({'element':'variable','name':'wavelength_stop',
-                      'write':self.set_wavelength_stop,'read':self.get_wavelength_stop,
-                      'type':float,'unit':'nm',
-                      'help':"Stop wavelength (nm)"})
-        model.append({'element':'variable','name':'trace_wavelength',
-                      'write':self.set_trace_wavelength,'read':self.get_trace_wavelength,
-                      'type':float, "unit":"nm",
-                      'help':"Trace wavelength (nm)"})
-        model.append({'element':'variable','name':'trace_power',
-                      'read':self.get_trace_power,
-                      'type':float,
-                      'help':"Trace power"})
-        model.append({'element':'variable','name':'spectrum_power',
-                      'read':self.get_spectrum_power,
-                      'type':float,
-                      'help':"Spectrum power"})
-        model.append({'element':'variable','name':'spectrum_wavelength',
-                      'read':self.get_spectrum_wavelength,
-                      'type':float, "unit":"nm",
-                      'help':"Spectrum wavelength (nm)"})
-
-        model.append({'element':'action','name':'search_peak',
-                      'do':self.search_peak,
-                      'help':"Search peak"})
-        model.append({'element':'action','name':'search_peak_next',
-                      'do':self.search_peak_next,
-                      'help':"Search peak next"})
-        model.append({'element':'action','name':'search_peak_last',
-                      'do':self.search_peak_last,
-                      'help':"Search peak last"})
-        model.append({'element':'action','name':'search_peak_left',
-                      'do':self.search_peak_left,
-                      'help':"Search peak left"})
-        model.append({'element':'action','name':'search_peak_right',
-                      'do':self.search_peak_right,
-                      'help':"Search peak right"})
-        model.append({'element':'variable','name':'search_spectrum_power',
-                      'read':self.get_search_spectrum_power_state,'write':self.set_search_spectrum_power_state,
-                      'type':bool,
-                      'help':"Set search spectrum power ON/OFF"})
-        model.append({'element':'action','name':'single_sweep',
-                      'do':self.single_sweep,
-                      'help':"Perform a single sweep"})
-        model.append({'element':'action','name':'repeat_sweep',
-                      'do':self.repeat_sweep,
-                      'help':"Perform sweep in continue"})
-        model.append({'element':'action','name':'stop_sweep',
-                      'do':self.stop_sweep,
-                      'help':"Stop sweep"})
-        model.append({'element':'variable','name':'get_data',
-                      'read':self.get_data, 'type':pd.DataFrame,
-                      'help':"Get sweep data"})
-        model.append({'element':'action','name':'save_data',
-                      'do':self.save_data,
-                      "param_type":str,
-                      'help':"Save stored sweep"})
-        model.append({'element':'action','name':'erase_markers',
-                      'do':self.erase_markers,
-                      'help':"Erase markers"})
-
-
-
-
-
-
+        model.append({'element': 'variable',
+                      'name': 'resolution',
+                      'write': self.set_resol,
+                      'read': self.get_resol,
+                      'type': float,
+                      'unit': 'nm',
+                      'help': "Resolution (nm)"})
+        model.append({'element': 'variable',
+                      'name': 'span',
+                      'write': self.set_span,
+                      'read': self.get_span,
+                      'type': float,
+                      'unit': 'nm',
+                      'help': "Span (nm)"})
+        model.append({'element': 'variable',
+                      'name': 'vbw',
+                      'write': self.set_vbw,
+                      'read': self.get_vbw,
+                      'type': int,
+                      'unit': "Hz",
+                      'help': "Video Bandwitdh (Hz)"})
+        model.append({'element': 'variable',
+                      'name': 'points',
+                      'write': self.set_nbpts,
+                      'read': self.get_nbpts,
+                      'type': int,
+                      'help': "How many points"})
+        model.append({'element': 'variable',
+                      'name': 'wavelength_center',
+                      'write': self.set_wavelength_center,
+                      'read': self.get_wavelength_center,
+                      'type': float,
+                      'unit': 'nm',
+                      'help': "Center wavelength (nm)"})
+        model.append({'element': 'variable',
+                      'name': 'wavelength_start',
+                      'write': self.set_wavelength_start,
+                      'read': self.get_wavelength_start,
+                      'type': float,
+                      'unit': 'nm',
+                      'help': "Start wavelength (nm)"})
+        model.append({'element': 'variable',
+                      'name': 'wavelength_stop',
+                      'write': self.set_wavelength_stop,
+                      'read': self.get_wavelength_stop,
+                      'type': float,
+                      'unit': 'nm',
+                      'help': "Stop wavelength (nm)"})
+        model.append({'element': 'variable',
+                      'name': 'trace_wavelength',
+                      'write': self.set_trace_wavelength,
+                      'read': self.get_trace_wavelength,
+                      'type': float,
+                      "unit": "nm",
+                      'help': "Trace wavelength (nm)"})
+        model.append({'element': 'variable',
+                      'name': 'trace_power',
+                      'read': self.get_trace_power,
+                      'type': float,
+                      'help': "Trace power"})
+        model.append({'element': 'variable',
+                      'name': 'spectrum_power',
+                      'read': self.get_spectrum_power,
+                      'type': float,
+                      'help': "Spectrum power"})
+        model.append({'element': 'variable',
+                      'name': 'spectrum_wavelength',
+                      'read': self.get_spectrum_wavelength,
+                      'type': float,
+                      "unit": "nm",
+                      'help': "Spectrum wavelength (nm)"})
+        model.append({'element': 'action',
+                      'name': 'search_peak',
+                      'do': self.search_peak,
+                      'help': "Search peak"})
+        model.append({'element': 'action',
+                      'name': 'search_peak_next',
+                      'do': self.search_peak_next,
+                      'help': "Search peak next"})
+        model.append({'element': 'action',
+                      'name': 'search_peak_last',
+                      'do': self.search_peak_last,
+                      'help': "Search peak last"})
+        model.append({'element': 'action',
+                      'name': 'search_peak_left',
+                      'do': self.search_peak_left,
+                      'help': "Search peak left"})
+        model.append({'element': 'action',
+                      'name': 'search_peak_right',
+                      'do': self.search_peak_right,
+                      'help': "Search peak right"})
+        model.append({'element': 'variable',
+                      'name': 'search_spectrum_power',
+                      'read': self.get_search_spectrum_power_state,
+                      'write': self.set_search_spectrum_power_state,
+                      'type': bool,
+                      'help': "Set search spectrum power ON/OFF"})
+        model.append({'element': 'action',
+                      'name': 'single_sweep',
+                      'do': self.single_sweep,
+                      'help': "Perform a single sweep"})
+        model.append({'element': 'action',
+                      'name': 'repeat_sweep',
+                      'do': self.repeat_sweep,
+                      'help': "Perform sweep in continue"})
+        model.append({'element': 'action',
+                      'name': 'stop_sweep',
+                      'do': self.stop_sweep,
+                      'help': "Stop sweep"})
+        model.append({'element': 'variable',
+                      'name': 'get_data',
+                      'read': self.get_data,
+                      'type': pd.DataFrame,
+                      'help': "Get sweep data"})
+        model.append({'element': 'action',
+                      'name': 'save_data',
+                      'do': self.save_data,
+                      "param_type": str,
+                      'help': "Save stored sweep"})
+        model.append({'element': 'action',
+                      'name': 'erase_markers',
+                      'do': self.erase_markers,
+                      'help': "Erase markers"})
         return model
 
 #################################################################################
 ############################## Connections classes ##############################
 class Driver_VISA(Driver):
-    def __init__(self,address='GPIB0::1::INSTR', **kwargs):
+    def __init__(self, address='GPIB0::1::INSTR', **kwargs):
         import pyvisa as visa
 
         rm = visa.ResourceManager()
@@ -405,8 +437,3 @@ class Driver_VISA(Driver):
         self.controller.write(command)
 ############################## Connections classes ##############################
 #################################################################################
-
-
-
-
-

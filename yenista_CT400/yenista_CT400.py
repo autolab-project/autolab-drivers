@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Supported instruments (identified): Yenista CT400, EXFO CT440.
--
+Supported instruments (identified):
+ - Yenista CT400
+ - EXFO CT440.
 """
 
 from typing import Tuple, List, Union
@@ -11,6 +12,7 @@ import sys
 import os
 import ctypes as ct
 import xml.etree.ElementTree as ET
+from xml.dom import minidom
 
 import pandas as pd
 import numpy as np
@@ -28,21 +30,25 @@ category = 'All-band Optical Component Tester'
 
 CONNECTION_ERROR = "Error during the connection to the CT400"
 
+# needed for plotter import (only needed if used outside of autolab)
+if os.path.dirname(os.path.dirname(__file__)) not in sys.path:
+    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 
 def laser_code(name, permute=False):
     code_dict = {
-        "TunicsPlus":LS_TunicsPlus,
-        "TunicsPurity":LS_TunicsPurity,
-        "TunicsReference":LS_TunicsReference,
-        "TunicsT100S":LS_TunicsT100s,
-        "TunicsT100R":LS_TunicsT100r,
-        "JDSU SWS":LS_JdsuSws,
-        "Agilent":LS_Agilent,
-        "Manual":NB_SOURCE,
+        "TunicsPlus": LS_TunicsPlus,
+        "TunicsPurity": LS_TunicsPurity,
+        "TunicsReference": LS_TunicsReference,
+        "TunicsT100S": LS_TunicsT100s,
+        "TunicsT100R": LS_TunicsT100r,
+        "JDSU SWS": LS_JdsuSws,
+        "Agilent": LS_Agilent,
+        "Manual": NB_SOURCE,
         }
 
     if permute:
-        code_dict = dict((new_val,new_k) for new_k,new_val in code_dict.items())
+        code_dict = dict((new_val, new_k) for new_k, new_val in code_dict.items())
 
     code = code_dict.get(name)
 
@@ -151,13 +157,11 @@ def read_xml(file: str) -> dict:
         "low_wavelength_scan": low_wavelength_scan,
         "high_wavelength_scan": high_wavelength_scan,
         "res_scan": res_scan,
-        "detector_array":detector_array}
+        "detector_array": detector_array}
     return config
 
 
 def default_xml():  # OPTIMIZE: update to add ct440 but should be useless anyway
-    import xml.etree.ElementTree as ET
-
     # create the default file structure
     CT400 = ET.Element('CT400')
     About = ET.SubElement(CT400, 'About')
@@ -306,9 +310,6 @@ def default_xml():  # OPTIMIZE: update to add ct440 but should be useless anyway
 
 def write_xml(config: dict, configpath: str):
     try:
-        import xml.etree.ElementTree as ET
-        from xml.dom import minidom
-
         # open existing or create default file structure
         if os.path.exists(configpath):
             CT400_tree = ET.parse(configpath)
@@ -545,50 +546,96 @@ class Laser:
         self._CmdLaser()
 
     def _CmdLaser(self):
-        self.controller.cmd_laser(self.uiHandle, self.NUM, self._state, ct.c_double(self._wavelength), ct.c_double(self._power))
+        self.controller.cmd_laser(
+            self.uiHandle, self.NUM, self._state,
+            ct.c_double(self._wavelength), ct.c_double(self._power))
 
     def get_driver_model(self) -> List[dict]:
         config = []
 
-        config.append({'element':'variable','name':'output','type':bool,
-                       'read_init':True,'read':self.get_output_state, 'write':self.set_output_state,
+        config.append({'element': 'variable',
+                       'name': 'output',
+                       'type': bool,
+                       'read_init': True,
+                       'read': self.get_output_state,
+                       'write': self.set_output_state,
                        "help": "Turn on/off the laser using boolean"})
 
-        config.append({'element':'variable','name':'wavelength','unit':'nm','type':float,
-                       'read_init':True,'read':self.get_wavelength,'write':self.set_wavelength,
+        config.append({'element': 'variable',
+                       'name': 'wavelength',
+                       'unit': 'nm',
+                       'type': float,
+                       'read_init': True,
+                       'read': self.get_wavelength,
+                       'write': self.set_wavelength,
                        "help": "Set the laser wavelength in nm"})
 
-        config.append({'element':'variable','name':'power','unit':'mW','type':float,
-                       'read_init':True,'read':self.get_power,'write':self.set_power,
-                       'help':'Set the laser output power in mW'})
+        config.append({'element': 'variable',
+                       'name': 'power',
+                       'unit': 'mW',
+                       'type': float,
+                       'read_init': True,
+                       'read': self.get_power,
+                       'write': self.set_power,
+                       'help': 'Set the laser output power in mW'})
 
-        config.append({'element':'variable','name':'low_wavelength','unit':'nm','type':float,
-                       'read_init':True,'read':self.get_low_wavelength,'write':self.set_low_wavelength,
-                       'help':'Set the starting wavelength of this laser for the scan in nm'})
+        config.append({'element': 'variable',
+                       'name': 'low_wavelength',
+                       'unit': 'nm',
+                       'type': float,
+                       'read_init': True, 'read': self.get_low_wavelength,
+                       'write': self.set_low_wavelength,
+                       'help': 'Set the starting wavelength of this laser for the scan in nm'})
 
-        config.append({'element':'variable','name':'high_wavelength','unit':'nm','type':float,
-                       'read_init':True,'read':self.get_high_wavelength,'write':self.set_high_wavelength,
-                       'help':'Set the end wavelength of this laser for the scan in nm'})
+        config.append({'element': 'variable',
+                       'name': 'high_wavelength',
+                       'unit': 'nm',
+                       'type': float,
+                       'read_init': True,
+                       'read': self.get_high_wavelength,
+                       'write': self.set_high_wavelength,
+                       'help': 'Set the end wavelength of this laser for the scan in nm'})
 
-        config.append({'element':'variable','name':'speed','unit':'nm/s','type':int,
-                       'read_init':True,'read':self.get_speed,'write':self.set_speed,
-                       'help':'Set the laser wavelength scan speed in nm/s'})
+        config.append({'element': 'variable',
+                       'name': 'speed',
+                       'unit': 'nm/s',
+                       'type': int,
+                       'read_init': True,
+                       'read': self.get_speed,
+                       'write': self.set_speed,
+                       'help': 'Set the laser wavelength scan speed in nm/s'})
 
         if self.model == "CT440":
-            config.append({'element':'variable','name':'GPIBID','type':int,
-                           'read_init':True,'read':self.get_GPIBID,'write':self.set_GPIBID,
+            config.append({'element': 'variable',
+                           'name': 'GPIBID',
+                           'type': int,
+                           'read_init': True,
+                           'read': self.get_GPIBID,
+                           'write': self.set_GPIBID,
                            "help": "Set the laser gbib id address. Usually 0"})
 
-        config.append({'element':'variable','name':'GPIBAdress','type':int,
-                       'read_init':True,'read':self.get_GPIBAdress,'write':self.set_GPIBAdress,
+        config.append({'element': 'variable',
+                       'name': 'GPIBAdress',
+                       'type': int,
+                       'read_init': True,
+                       'read': self.get_GPIBAdress,
+                       'write': self.set_GPIBAdress,
                        "help": "Set the laser gbib address."})
 
-        config.append({'element':'variable','name':'model','type':tuple,
-                       'read_init':True,'read':self.get_model,'write':self.set_model,
+        config.append({'element': 'variable',
+                       'name': 'model',
+                       'type': tuple,
+                       'read_init': True,
+                       'read': self.get_model,
+                       'write': self.set_model,
                        "help": "Set the laser model"})
 
-        config.append({'element':'variable','name':'connected','type':bool,
-                       'read_init':True,'read':self.get_connected, 'write':self.set_connected,
+        config.append({'element': 'variable',
+                       'name': 'connected',
+                       'type': bool,
+                       'read_init': True,
+                       'read': self.get_connected,
+                       'write': self.set_connected,
                        "help": "Boolean for connected laser"})
         return config
 
@@ -621,6 +668,7 @@ class Scan:
                 self.connect()
             except Exception as e:
                 print(f"Error with scan: {e}", file=sys.stderr)
+                self.dev._error_msg = str(e)
 
     def connect(self):
         try:
@@ -719,17 +767,17 @@ class Scan:
         self._detector4_state = bool(int(float(value)))
 
     def do_sweep(self):
-        for i in range(1, 4+1):
+        for i in range(1,4+1):
             laser = getattr(self.dev, f"laser{i}", None)
             if laser is not None and laser._connected:
                 laser._state = ENABLE
 
         self.scan_running = True
         self.controller.set_detector_array(self.uiHandle,
-                                            self._detector2_state,
-                                            self._detector3_state,
-                                            self._detector4_state,
-                                            DISABLE)  # eExt
+                                           self._detector2_state,
+                                           self._detector3_state,
+                                           self._detector4_state,
+                                           DISABLE)  # eExt
 
         self.controller.set_bnc(self.uiHandle, DISABLE, ct.c_double(0.0), ct.c_double(0.0), Unit_mW)
 
@@ -835,11 +883,11 @@ class Scan:
         df_res['L'] = df_res['L'].map(lambda x: '%1.3f' % x)  # Set nbr of digit to save but change datatype to object: float -> str
         df_res['O'] = df_res['O'].map(lambda x: '%1.2f' % x)
         df_res['1'] = df_res['1'].map(lambda x: '%1.2f' % x)
-        if df_res.get("2"):
+        if df_res.get("2") is not None:
             df_res['2'] = df_res['2'].map(lambda x: '%1.2f' % x)
-        if df_res.get("3"):
+        if df_res.get("3") is not None:
             df_res['3'] = df_res['3'].map(lambda x: '%1.2f' % x)
-        if df_res.get("4"):
+        if df_res.get("4") is not None:
             df_res['4'] = df_res['4'].map(lambda x: '%1.2f' % x)
 
         df_res = df_res.apply(pd.to_numeric)  # OPTIMIZE: good to have float for plotting but bad rounding for saving data. could have get_data_str() for saving and get_data() for plotting
@@ -863,48 +911,92 @@ class Scan:
     def get_driver_model(self) -> List[dict]:
         config = []
 
-        config.append({'element':'variable','name':'power','unit':'mW','type':float,
-                       'read_init':True,'read':self.get_power_scan,'write':self.set_power_scan,
-                       'help':'Set the lasers output power in mW for the scan'})
+        config.append({'element': 'variable',
+                       'name': 'power',
+                       'unit': 'mW',
+                       'type': float,
+                       'read_init': True,
+                       'read': self.get_power_scan,
+                       'write': self.set_power_scan,
+                       'help': 'Set the lasers output power in mW for the scan'})
 
-        config.append({'element':'variable','name':'low_wavelength','unit':'nm','type':float,
-                       'read_init':True,'read':self.get_low_wavelength_scan,'write':self.set_low_wavelength_scan,
-                       'help':'Set the starting wavelength of the scan in nm'})
+        config.append({'element': 'variable',
+                       'name': 'low_wavelength',
+                       'unit': 'nm',
+                       'type': float,
+                       'read_init': True,
+                       'read': self.get_low_wavelength_scan,
+                       'write': self.set_low_wavelength_scan,
+                       'help': 'Set the starting wavelength of the scan in nm'})
 
-        config.append({'element':'variable','name':'high_wavelength','unit':'nm','type':float,
-                       'read_init':True,'read':self.get_high_wavelength_scan,'write':self.set_high_wavelength_scan,
-                       'help':'Set the end wavelength of the scan in nm'})
+        config.append({'element': 'variable',
+                       'name': 'high_wavelength',
+                       'unit': 'nm',
+                       'type': float,
+                       'read_init': True,
+                       'read': self.get_high_wavelength_scan,
+                       'write': self.set_high_wavelength_scan,
+                       'help': 'Set the end wavelength of the scan in nm'})
 
-        config.append({'element':'variable','name':'resolution','unit':'pm','type':int,
-                       'read_init':True,'read':self.get_res,'write':self.set_res,
-                       'help':'Set the wavelength resolution of the scan in pm'})
+        config.append({'element': 'variable',
+                       'name': 'resolution',
+                       'unit': 'pm',
+                       'type': int,
+                       'read_init': True,
+                       'read': self.get_res,
+                       'write': self.set_res,
+                       'help': 'Set the wavelength resolution of the scan in pm'})
 
-        config.append({'element':'action','name':'sweep','do':self.do_sweep,
-                       'help':'Start the scan'})
+        config.append({'element': 'action',
+                       'name': 'sweep',
+                       'do': self.do_sweep,
+                       'help': 'Start the scan'})
 
-        config.append({'element':'variable','name':'data','type':pd.DataFrame,
-                       'read':self.get_data,
+        config.append({'element': 'variable',
+                       'name': 'data',
+                       'type': pd.DataFrame,
+                       'read': self.get_data,
                        "help": "Return the data stored"})
 
-        config.append({'element':'variable','name':'interpolate','type':bool,
-                       'read_init':True,'read':self.get_interpolate,'write':self.set_interpolate,
-                       'help':'Set if want interpolated or raw scan data'})
+        config.append({'element': 'variable',
+                       'name': 'interpolate',
+                       'type': bool,
+                       'read_init': True,
+                       'read': self.get_interpolate,
+                       'write': self.set_interpolate,
+                       'help': 'Set if want interpolated or raw scan data'})
 
-        config.append({'element':'variable','name':'detector2','type':bool,
-                       'read_init':True,'read':self.get_detector2_state,'write':self.set_detector2_state,
-                       'help':'Set if detector 2 is measured in scan'})
+        config.append({'element': 'variable',
+                       'name': 'detector2',
+                       'type': bool,
+                       'read_init': True,
+                       'read': self.get_detector2_state,
+                       'write': self.set_detector2_state,
+                       'help': 'Set if detector 2 is measured in scan'})
 
-        config.append({'element':'variable','name':'detector3','type':bool,
-                       'read_init':True,'read':self.get_detector3_state,'write':self.set_detector3_state,
-                       'help':'Set if detector 3 is measured in scan'})
+        config.append({'element': 'variable',
+                       'name': 'detector3',
+                       'type': bool,
+                       'read_init': True,
+                       'read': self.get_detector3_state,
+                       'write': self.set_detector3_state,
+                       'help': 'Set if detector 3 is measured in scan'})
 
-        config.append({'element':'variable','name':'detector4','type':bool,
-                       'read_init':True,'read':self.get_detector4_state,'write':self.set_detector4_state,
-                       'help':'Set if detector 4 is measured in scan'})
+        config.append({'element': 'variable',
+                       'name': 'detector4',
+                       'type': bool,
+                       'read_init': True,
+                       'read': self.get_detector4_state,
+                       'write': self.set_detector4_state,
+                       'help': 'Set if detector 4 is measured in scan'})
 
-        config.append({'element':'variable','name':'input_source','type':int,
-                       'read_init':True,'read':self.get_input_source,'write':self.set_input_source,
-                       'help':'Select the input source laser (1,2,3,4)'})
+        config.append({'element': 'variable',
+                       'name': 'input_source',
+                       'type': int,
+                       'read_init': True,
+                       'read': self.get_input_source,
+                       'write': self.set_input_source,
+                       'help': 'Select the input source laser (1,2,3,4)'})
         return config
 
 
@@ -924,24 +1016,32 @@ class Detectors:
         LinesArraySize = ct.c_double * iLinesDetected
         dLinesValues = LinesArraySize()
 
-        self.controller.scan_get_lines_detection_array(self.uiHandle, dLinesValues, iLinesDetected)
+        self.controller.scan_get_lines_detection_array(
+            self.uiHandle, dLinesValues, iLinesDetected)
         return dLinesValues
 
     def get_detector_power(self) -> Tuple[float, float, float, float, float, float]:
         assert not self.dev.scan.scan_running, "Can't measure detector power during a scan"
 
         PowerArraySize = ct.c_double * 1
-        (Pout, P1, P2, P3, P4, Vext) = (PowerArraySize(), PowerArraySize(), PowerArraySize(), PowerArraySize(), PowerArraySize(), PowerArraySize())
+        (Pout, P1, P2, P3, P4, Vext) = (
+            PowerArraySize(), PowerArraySize(), PowerArraySize(),
+            PowerArraySize(), PowerArraySize(), PowerArraySize())
 
-        self.controller.read_power_detectors(self.uiHandle, Pout, P1, P2, P3, P4, Vext)
-        (Pout, P1, P2, P3, P4, Vext) = (float(Pout[0]), float(P1[0]), float(P2[0]), float(P3[0]), float(P4[0]), float(Vext[0]))
-        (Pout, P1, P2, P3, P4, Vext) = (round(Pout, 3), round(P1, 3), round(P2, 3), round(P3, 3), round(P4, 3), round(Vext, 3))
+        self.controller.read_power_detectors(
+            self.uiHandle, Pout, P1, P2, P3, P4, Vext)
+        (Pout, P1, P2, P3, P4, Vext) = (
+            float(Pout[0]), float(P1[0]), float(P2[0]),
+            float(P3[0]), float(P4[0]), float(Vext[0]))
+        (Pout, P1, P2, P3, P4, Vext) = (
+            round(Pout, 3), round(P1, 3), round(P2, 3),
+            round(P3, 3), round(P4, 3), round(Vext, 3))
         return Pout, P1, P2, P3, P4, Vext
 
     def get_detector_power0(self) -> float:
         return self.get_detector_power()[0]
 
-    def get_detector_power1(self) -> float:
+    def  get_detector_power1(self) -> float:
         return self.get_detector_power()[1]
 
     def get_detector_power2(self) -> float:
@@ -959,23 +1059,47 @@ class Detectors:
     def get_driver_model(self) -> List[dict]:
         config = []
 
-        config.append({'element':'variable','name':'Pout','unit':'dBm','type':float,
-                        'read':self.get_detector_power0,'help':'Power out CT400 in dBm'})
+        config.append({'element': 'variable',
+                       'name': 'Pout',
+                       'unit': 'dBm',
+                       'type': float,
+                       'read': self.get_detector_power0,
+                       'help': 'Power out CT400 in dBm'})
 
-        config.append({'element':'variable','name':'P_detector1','unit':'dBm','type':float,
-                        'read':self.get_detector_power1,'help':'Power in detector 1 in dBm'})
+        config.append({'element': 'variable',
+                       'name': 'P_detector1',
+                       'unit': 'dBm',
+                       'type': float,
+                       'read': self.get_detector_power1,
+                       'help': 'Power in detector 1 in dBm'})
 
-        config.append({'element':'variable','name':'P_detector2','unit':'dBm','type':float,
-                        'read':self.get_detector_power2,'help':'Power in detector 2 in dBm'})
+        config.append({'element': 'variable',
+                       'name': 'P_detector2',
+                       'unit': 'dBm',
+                       'type': float,
+                       'read': self.get_detector_power2,
+                       'help': 'Power in detector 2 in dBm'})
 
-        config.append({'element':'variable','name':'P_detector3','unit':'dBm','type':float,
-                        'read':self.get_detector_power3,'help':'Power in detector 3 in dBm'})
+        config.append({'element': 'variable',
+                       'name': 'P_detector3',
+                       'unit': 'dBm',
+                       'type': float,
+                        'read': self.get_detector_power3,
+                        'help': 'Power in detector 3 in dBm'})
 
-        config.append({'element':'variable','name':'P_detector4','unit':'dBm','type':float,
-                        'read':self.get_detector_power4,'help':'Power in detector 4 in dBm'})
+        config.append({'element': 'variable',
+                       'name': 'P_detector4',
+                       'unit': 'dBm',
+                       'type': float,
+                       'read': self.get_detector_power4,
+                       'help': 'Power in detector 4 in dBm'})
 
-        config.append({'element':'variable','name':'Vext','unit':'V','type':float,
-                        'read':self.get_vext,'help':'Voltage ext in V'})
+        config.append({'element': 'variable',
+                       'name': 'Vext',
+                       'unit': 'V',
+                       'type': float,
+                       'read': self.get_vext,
+                       'help': 'Voltage ext in V'})
         return config
 
 
@@ -994,14 +1118,10 @@ class Driver():
 
         self.nl = len(self.config['address'])
 
-        for i in range(1, self.nl+1):
+        for i in range(1,self.nl+1):
             setattr(self, f'laser{i}', Laser(self, i))
 
         self.scan = Scan(self)
-
-        # OBSOLETE: needed for plotter import
-        if os.path.dirname(os.path.dirname(__file__)) not in sys.path:
-            sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
         try:
             from plotter.plotter import Driver_DEFAULT
@@ -1010,20 +1130,27 @@ class Driver():
             print(f"Warning: {e}. Will not use interface", file=sys.stderr)
             pass
 
+    def get_error_msg(self) -> str:
+        return self._error_msg
+
     def get_config(self) -> dict:
+
+        get_laser_attr = lambda attr: [getattr(self, f"laser{i}").__dict__[attr]
+                                       for i in range(1, self.nl+1)]
         config = {
-            "GPIBID": [getattr(self, f"laser{i}")._GPIBID for i in range(1, self.nl+1)],
-            "address": [getattr(self, f"laser{i}")._GPIBAdress for i in range(1, self.nl+1)],
-            "low_wavelength": [getattr(self, f"laser{i}")._low_wavelength for i in range(1, self.nl+1)],
-            "high_wavelength": [getattr(self, f"laser{i}")._high_wavelength for i in range(1, self.nl+1)],
-            "speed":[getattr(self, f"laser{i}")._speed for i in range(1, self.nl+1)],
-            "connected": [getattr(self, f"laser{i}")._connected for i in range(1, self.nl+1)],
-            "laser_model": [getattr(self, f"laser{i}")._laser_model for i in range(1, self.nl+1)],
+            "GPIBID": get_laser_attr('_GPIBID'),
+            "address": get_laser_attr('_GPIBAdress'),
+            "low_wavelength": get_laser_attr('_low_wavelength'),
+            "high_wavelength": get_laser_attr('_high_wavelength'),
+            "speed": get_laser_attr('_speed'),
+            "connected": get_laser_attr('_connected'),
+            "laser_model": get_laser_attr('_laser_model'),
             "power_scan": self.scan._power_scan,
             "low_wavelength_scan": self.scan._low_wavelength_scan,
             "high_wavelength_scan": self.scan._high_wavelength_scan,
             "res_scan": self.scan._res,
-            "detector_array": [getattr(self.scan, f"_detector{i}_state") for i in (2, 3, 4)]
+            "detector_array": [getattr(self.scan, f"_detector{i}_state")
+                               for i in (2, 3, 4)]
             }
         return config
 
@@ -1031,18 +1158,33 @@ class Driver():
 
         model = []
 
+        model.append({'element': 'variable',
+                      'name': 'ERROR',
+                      'type': str,
+                      'read_init': True,
+                      'read': self.get_error_msg,
+                      'help': 'Information on last error uncounter'})
+
         if hasattr(self, 'interface'):
-            model.append({'element':'module','name':'interface','object':self.interface,
-                           'help': "Module imported from driver 'plotter'. Can be used to compute bandwidth."})
+            model.append({'element': 'module',
+                          'name': 'interface',
+                          'object': self.interface,
+                          'help': "Module imported from driver 'plotter'. Can be used to compute bandwidth."})
 
-        model.append({'element':'module','name':'detectors','object':self.detectors,
-                       'help': 'Module to measure detectors power.'})
-        for i in range(1,self.nl+1):
-            model.append({'element':'module','name':f'laser{i}','object':getattr(self,f'laser{i}'),
-                           'help': f'Module to control laser{i} using {self.model} commands.'})
+        model.append({'element': 'module',
+                      'name': 'detectors',
+                      'object': self.detectors,
+                      'help': 'Module to measure detectors power.'})
+        for i in range(1, self.nl+1):
+            model.append({'element': 'module',
+                          'name': f'laser{i}',
+                          'object': getattr(self, f'laser{i}'),
+                          'help': f'Module to control laser{i} using {self.model} commands.'})
 
-        model.append({'element':'module','name':'scan','object':self.scan,
-                       'help': 'Module to set and do wavelength scan.'})
+        model.append({'element': 'module',
+                      'name': 'scan',
+                      'object': self.scan,
+                      'help': 'Module to set and do wavelength scan.'})
         return model
 
 
@@ -1059,16 +1201,15 @@ class Driver_DLL(Driver):
         self.configpath = configpath
         self.model = model
 
-        # needed for ct400_lib import
-        if os.path.dirname(__file__) not in sys.path:
-            sys.path.append(os.path.dirname(__file__))
-
+        error = ''
         try:
             self.connect()
         except Exception as e:
+            error = str(e)
             print(f"Error with {self.model}: {e}", file=sys.stderr)
 
         Driver.__init__(self)
+        self._error_msg = error
 
         self.ct400_command_list = [
             "CT400_Init",
@@ -1139,9 +1280,12 @@ class Driver_DLL(Driver):
 
                 main_folder = self.libpath[: self.libpath.find('Library ')]
                 if os.path.exists(main_folder):
-                    versions = [folder[len('Library '):] for folder in os.listdir(main_folder) if 'Library ' in folder]
+                    versions = [folder[len('Library '):]
+                                for folder in os.listdir(main_folder)
+                                if 'Library ' in folder]
                     if len(versions) > 0:
-                        highest_version = max(versions, key=lambda v: tuple(map(int, v.split('.'))))
+                        highest_version = max(
+                            versions, key=lambda v: tuple(map(int, v.split('.'))))
                         e += f" Try using 'Library {highest_version}' instead."
 
             raise OSError(e)
@@ -1174,10 +1318,12 @@ class Driver_DLL(Driver):
                 self.controller.close(self.uiHandle)
         except Exception as e:
             print(f"Warning, {self.model} didn't close properly: {e}", file=sys.stderr)
+            self._error_msg = str(e)
         try:
             self.config = self.get_config()
             write_xml(self.config, self.configpath)
         except Exception as e:
             print(f"Warning, {self.model} config file not saved: {e}", file=sys.stderr)
+            self._error_msg = str(e)
 ############################## Connections classes ##############################
 #################################################################################
